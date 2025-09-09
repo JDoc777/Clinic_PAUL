@@ -1,0 +1,68 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "4210f74c-9338-4dd5-a44d-0b2393a89c41")
+	(paper "A4")
+	(lib_symbols)
+	(rectangle
+		(start 121.92 50.8)
+		(end 186.69 144.78)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid b546156e-b01e-4dff-809b-6c69c6e556bb)
+	)
+	(hierarchical_label "GND Common Arduino"
+		(shape bidirectional)
+		(at 121.92 63.5 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0dc49e93-e8dc-46d2-9b4e-4607b840deb6")
+	)
+	(hierarchical_label "GPIO"
+		(shape bidirectional)
+		(at 121.92 72.39 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "349552e9-48d6-4a51-818c-1ac9e6b0b19d")
+	)
+	(hierarchical_label "+5 Power_In"
+		(shape output)
+		(at 121.92 59.69 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "7c6935dd-1acf-485d-b680-7a4701dd2a61")
+	)
+	(hierarchical_label "GPIO 0"
+		(shape bidirectional)
+		(at 121.92 121.92 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "96beb7b1-38c5-4fd2-986d-e9735a22d00e")
+	)
+)

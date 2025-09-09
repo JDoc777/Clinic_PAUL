@@ -1,0 +1,56 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "47267785-5945-4e34-a94a-3d2009ccb552")
+	(paper "A4")
+	(lib_symbols)
+	(rectangle
+		(start 118.11 73.66)
+		(end 139.7 95.25)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid e5241891-6be6-412c-9201-a5c58526b4cf)
+	)
+	(hierarchical_label "GND"
+		(shape bidirectional)
+		(at 118.11 83.82 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0ba5a0db-ef45-4c69-baf5-1df94299f336")
+	)
+	(hierarchical_label "+5v"
+		(shape bidirectional)
+		(at 118.11 78.74 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "52df534a-317c-4207-a761-d7b468458f5e")
+	)
+	(hierarchical_label "Temp & % 1"
+		(shape bidirectional)
+		(at 118.11 88.9 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "b2c5492a-fdab-4ec6-94bd-4eb833860ba9")
+	)
+)

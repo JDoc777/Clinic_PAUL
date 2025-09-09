@@ -1,0 +1,68 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "1e925c12-a4ff-4947-8a70-9f1cbb7d3831")
+	(paper "A4")
+	(lib_symbols)
+	(rectangle
+		(start 129.54 80.01)
+		(end 160.02 93.98)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid e454381b-d443-42e7-b9e4-f481fd811049)
+	)
+	(hierarchical_label "RX"
+		(shape bidirectional)
+		(at 160.02 83.82 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "4d92945f-820b-4ef1-a8df-c9f8dcc2b220")
+	)
+	(hierarchical_label "Power In"
+		(shape bidirectional)
+		(at 129.54 83.82 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "661a3649-16ba-41a0-975a-c9bb1cbe439f")
+	)
+	(hierarchical_label "TX"
+		(shape bidirectional)
+		(at 160.02 88.9 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9c9edf90-628c-4f22-ab57-2584a3ea9d98")
+	)
+	(hierarchical_label "GND"
+		(shape bidirectional)
+		(at 129.54 88.9 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c0238071-4c57-40b9-8c92-7495ec5d4be6")
+	)
+)

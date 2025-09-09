@@ -1,0 +1,1000 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "733c9d0c-35bb-4f4b-a28c-cd5bbbb9c049")
+	(paper "A4")
+	(lib_symbols)
+	(junction
+		(at 83.82 90.17)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "3e9ef2cd-f106-40ac-a78f-9fe1d5d68d50")
+	)
+	(junction
+		(at 85.09 93.98)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8bd27d3e-f7ed-4d15-badd-5b7f2af80b93")
+	)
+	(junction
+		(at 139.7 93.98)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "a4649245-631b-4171-8c68-6b6a67cc9982")
+	)
+	(junction
+		(at 138.43 90.17)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ffb0262e-b26b-45fb-b7c9-94b54c721ad9")
+	)
+	(wire
+		(pts
+			(xy 180.34 137.16) (xy 139.7 137.16)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "06bb0376-fcad-449b-a6ff-fe566398cada")
+	)
+	(wire
+		(pts
+			(xy 173.99 77.47) (xy 180.34 77.47)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "17944fd2-dbcc-4a5b-b5f5-42b34d411eab")
+	)
+	(wire
+		(pts
+			(xy 82.55 139.7) (xy 93.98 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1b5902cc-6899-413a-a1c8-6b3d970924c7")
+	)
+	(wire
+		(pts
+			(xy 166.37 58.42) (xy 180.34 58.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "23484a6b-eb35-4727-b895-d98014b967e3")
+	)
+	(wire
+		(pts
+			(xy 83.82 90.17) (xy 83.82 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "237344ee-87d6-4219-a22f-494623b9636e")
+	)
+	(wire
+		(pts
+			(xy 76.2 93.98) (xy 85.09 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2b763515-30b0-415c-9958-29571bfc0b44")
+	)
+	(wire
+		(pts
+			(xy 85.09 66.04) (xy 93.98 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2f7959c1-716a-44e0-8f99-db2842683fae")
+	)
+	(wire
+		(pts
+			(xy 180.34 66.04) (xy 138.43 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "39ecb40f-d61f-479c-ac45-a1a4f7b61c2e")
+	)
+	(wire
+		(pts
+			(xy 139.7 93.98) (xy 85.09 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5b019f4f-121b-43ff-bbcb-5f8939b293db")
+	)
+	(wire
+		(pts
+			(xy 83.82 62.23) (xy 93.98 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5b71ff63-5e46-49ed-ad27-7b28ebb2208f")
+	)
+	(wire
+		(pts
+			(xy 138.43 90.17) (xy 83.82 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5cca43b5-7ec0-4b49-a386-71706c4e43e3")
+	)
+	(wire
+		(pts
+			(xy 138.43 133.35) (xy 138.43 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6a29dc71-7130-4886-ae17-47e7c7a76c3b")
+	)
+	(wire
+		(pts
+			(xy 171.45 140.97) (xy 180.34 140.97)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6a7920a6-7136-4eb4-aee5-f4307396997c")
+	)
+	(wire
+		(pts
+			(xy 85.09 135.89) (xy 85.09 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6a84f247-33d3-4051-933b-dce0c11e1252")
+	)
+	(wire
+		(pts
+			(xy 180.34 69.85) (xy 139.7 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6f3470ad-8b60-4ce7-a2e7-f4eab6766ada")
+	)
+	(wire
+		(pts
+			(xy 83.82 132.08) (xy 83.82 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6f52e9ae-6214-4236-b0b8-92fe81a310e6")
+	)
+	(wire
+		(pts
+			(xy 163.83 125.73) (xy 180.34 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "716d6fdb-d68f-4055-a68c-a3f0d6054b0f")
+	)
+	(wire
+		(pts
+			(xy 93.98 132.08) (xy 83.82 132.08)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "761ab6d8-1667-4ec9-9dfd-f15b2caf3463")
+	)
+	(wire
+		(pts
+			(xy 173.99 73.66) (xy 180.34 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "77d016b1-2388-4959-a6c5-69c9e1d2a9e5")
+	)
+	(wire
+		(pts
+			(xy 76.2 69.85) (xy 93.98 69.85)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7a0e74a7-0aa1-463b-a500-e8acfffa9528")
+	)
+	(wire
+		(pts
+			(xy 180.34 133.35) (xy 138.43 133.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "84c9a074-a45b-4d46-89d5-531108dc9efc")
+	)
+	(wire
+		(pts
+			(xy 74.93 128.27) (xy 93.98 128.27)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "856dedef-3c23-4a6b-b4b1-ae87af48c382")
+	)
+	(wire
+		(pts
+			(xy 139.7 69.85) (xy 139.7 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "912dd874-d92e-4972-8bf0-ee0c5020006b")
+	)
+	(wire
+		(pts
+			(xy 76.2 73.66) (xy 93.98 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9dee3db0-64a9-42db-a17d-2c849b849d48")
+	)
+	(wire
+		(pts
+			(xy 74.93 124.46) (xy 93.98 124.46)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a023cb9e-ec79-4adc-bdb9-61d8ee21fe79")
+	)
+	(wire
+		(pts
+			(xy 93.98 135.89) (xy 85.09 135.89)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a05f840d-5d6e-4104-b253-c31f440453ab")
+	)
+	(wire
+		(pts
+			(xy 171.45 144.78) (xy 180.34 144.78)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a0ea19be-a612-4c01-aab7-aeb441bdbf59")
+	)
+	(wire
+		(pts
+			(xy 82.55 143.51) (xy 93.98 143.51)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bc0f1573-6f47-4cdf-8a5d-f143a8f89cb8")
+	)
+	(wire
+		(pts
+			(xy 138.43 66.04) (xy 138.43 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cc79d083-716e-4953-b8ec-3bf78d78b2a8")
+	)
+	(wire
+		(pts
+			(xy 76.2 90.17) (xy 83.82 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cd06893c-892a-481e-9950-5fc5d89123c1")
+	)
+	(wire
+		(pts
+			(xy 76.2 54.61) (xy 93.98 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d0996251-d31a-4f94-ab68-a78d4989faab")
+	)
+	(wire
+		(pts
+			(xy 166.37 62.23) (xy 180.34 62.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d14991ff-52b0-4914-b02a-e85928c17e8e")
+	)
+	(wire
+		(pts
+			(xy 139.7 137.16) (xy 139.7 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "da221e78-3a7c-48a5-97cd-fe2f0555f487")
+	)
+	(wire
+		(pts
+			(xy 163.83 129.54) (xy 180.34 129.54)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e07daa2d-c60a-466b-812d-b1191e697010")
+	)
+	(wire
+		(pts
+			(xy 85.09 93.98) (xy 85.09 66.04)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e3ab9128-b206-47d8-b7d0-dba1c2c158a2")
+	)
+	(wire
+		(pts
+			(xy 76.2 58.42) (xy 93.98 58.42)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e993d5e1-0184-4a8e-b233-3edccecf0abb")
+	)
+	(rectangle
+		(start 93.98 115.57)
+		(end 130.81 151.13)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 4a63e77e-91ff-4534-919f-17bba2fe03d2)
+	)
+	(rectangle
+		(start 93.98 48.26)
+		(end 130.81 83.82)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 6702a515-b24a-4fa0-8694-7ffb9f271b45)
+	)
+	(rectangle
+		(start 180.34 49.53)
+		(end 217.17 85.09)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 7d1a792a-2e7f-4338-b9d5-478ac97dbab5)
+	)
+	(rectangle
+		(start 180.34 115.57)
+		(end 217.17 151.13)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid bacab670-c107-4b31-8981-50ec105a34e1)
+	)
+	(text "Back"
+		(exclude_from_sim no)
+		(at 35.814 101.6 0)
+		(effects
+			(font
+				(size 5.08 5.08)
+			)
+		)
+		(uuid "4527f936-21e2-4784-a542-f503bf2c4fcb")
+	)
+	(text "Motor\nFront\nLeft"
+		(exclude_from_sim no)
+		(at 199.136 38.608 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+			)
+		)
+		(uuid "56a8f428-3733-48eb-a83e-53bb6c595b2a")
+	)
+	(text "Front"
+		(exclude_from_sim no)
+		(at 241.046 101.6 0)
+		(effects
+			(font
+				(size 5.08 5.08)
+			)
+		)
+		(uuid "5cf594be-8b28-432e-8f24-a9a44b7c8987")
+	)
+	(text "Motor\nBack\nLeft"
+		(exclude_from_sim no)
+		(at 111.76 41.402 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+			)
+		)
+		(uuid "73b6acac-5e36-445a-8111-cabd7ae42088")
+	)
+	(text "Left"
+		(exclude_from_sim no)
+		(at 152.4 168.656 0)
+		(effects
+			(font
+				(size 5.08 5.08)
+			)
+		)
+		(uuid "77a0b6e4-b549-47e5-970a-30234001557d")
+	)
+	(text "Motor\nFront\nRight"
+		(exclude_from_sim no)
+		(at 199.136 106.172 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+			)
+		)
+		(uuid "7c00e2f6-e640-4d4b-98c3-fb0a89b0f41f")
+	)
+	(text "Motor\nBack\nRight"
+		(exclude_from_sim no)
+		(at 112.014 105.156 0)
+		(effects
+			(font
+				(size 2.54 2.54)
+			)
+		)
+		(uuid "85b12ea1-7c6f-4ad0-aef6-d00985ece9bf")
+	)
+	(text "Right"
+		(exclude_from_sim no)
+		(at 152.146 32.004 0)
+		(effects
+			(font
+				(size 5.08 5.08)
+			)
+		)
+		(uuid "cde15568-d5c6-4b3f-85c8-670df106098b")
+	)
+	(label "Quad Encoder +5V Vcc"
+		(at 180.34 137.16 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1cca9ddd-fb89-4882-8e5b-46558862a5c2")
+	)
+	(label "Quad Encoder A Signal"
+		(at 180.34 73.66 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3073392e-a0d8-4aa9-aad0-97022318b162")
+	)
+	(label "Motor Power Terminal (-)"
+		(at 93.98 58.42 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "38b73e56-0356-4fd4-94df-c21938ecab59")
+	)
+	(label "Motor Power Terminal (-)"
+		(at 180.34 62.23 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3a12dc73-d9d0-482e-8caa-67b077db27a4")
+	)
+	(label "Motor Power Terminal (+)"
+		(at 180.34 58.42 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3a97c3a4-64e3-471e-a8ed-5c5e4b716ee3")
+	)
+	(label "Quad Encoder B Signal"
+		(at 93.98 143.51 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3b24a192-7241-46c5-ad2a-17792653a49c")
+	)
+	(label "Quad Encoder B Signal"
+		(at 180.34 77.47 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3fd7c012-093b-4e74-9952-271ddb524632")
+	)
+	(label "Quad Encoder A Signal"
+		(at 93.98 69.85 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "447ca3f0-80a7-43a0-9dca-6761756352f6")
+	)
+	(label "Quad Encoder GND"
+		(at 180.34 66.04 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4d40c6a9-0b6c-4f70-b300-3b9e3e1cfd21")
+	)
+	(label "Quad Encoder A Signal"
+		(at 180.34 140.97 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "50912259-da22-4551-a3db-76dd28a7dfd0")
+	)
+	(label "Motor Power Terminal (-)"
+		(at 93.98 128.27 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "579e0ebc-bab3-4907-8186-7c84cef9f9c7")
+	)
+	(label "Quad Encoder +5V Vcc"
+		(at 93.98 135.89 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "57ef63a6-970b-42ad-b5ef-d5433f285d64")
+	)
+	(label "Quad Encoder GND"
+		(at 93.98 132.08 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5ce857c7-e74f-4d6d-89eb-4444c82b258c")
+	)
+	(label "Quad Encoder GND"
+		(at 93.98 62.23 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "60955504-c6cc-4763-82f1-30ef2473ba20")
+	)
+	(label "Motor Power Terminal (+)"
+		(at 180.34 125.73 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "63e77ee3-1600-46ae-ac6a-209ce2559c6f")
+	)
+	(label "Quad Encoder B Signal"
+		(at 93.98 73.66 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "68f8c941-2c7f-40fe-be56-b343f80f0d66")
+	)
+	(label "Motor Power Terminal (-)"
+		(at 180.34 129.54 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "71b2bd63-d34a-4635-a8d1-b07a43f8dab4")
+	)
+	(label "Motor Power Terminal (+)"
+		(at 93.98 124.46 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "776306d6-6117-415b-bd75-51229b3402b4")
+	)
+	(label "Quad Encoder +5V Vcc"
+		(at 180.34 69.85 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "7c25134a-f4a5-4800-ad5a-637746e319fb")
+	)
+	(label "Quad Encoder +5V Vcc"
+		(at 93.98 66.04 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b0f903d8-6e97-41b5-97e7-5902ac88e15e")
+	)
+	(label "Motor Power Terminal (+)"
+		(at 93.98 54.61 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b4234b21-1977-48f6-b876-c401e82ce9d7")
+	)
+	(label "Quad Encoder B Signal"
+		(at 180.34 144.78 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c643172d-a1ac-49d7-b813-7e2926834d40")
+	)
+	(label "Quad Encoder A Signal"
+		(at 93.98 139.7 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ec90a1c3-5761-428e-b711-24d7a1cdbd16")
+	)
+	(label "Quad Encoder GND"
+		(at 180.34 133.35 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f71792da-b1b0-4e2d-9972-aac1b17e0eb2")
+	)
+	(hierarchical_label "Quad Encoder GND"
+		(shape output)
+		(at 76.2 90.17 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "00c0b8b5-5bef-41e4-9d29-b979a651b886")
+	)
+	(hierarchical_label "BL Quad Encoder A Signal"
+		(shape output)
+		(at 76.2 69.85 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "093b36ca-77b7-48b6-9021-1589d3f017a1")
+	)
+	(hierarchical_label "BL (+)"
+		(shape input)
+		(at 76.2 54.61 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "0d191782-45f9-40aa-a66d-7cb74344c66e")
+	)
+	(hierarchical_label "FL Quad Encoder A Signal"
+		(shape output)
+		(at 173.99 73.66 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "24cba89e-aa4c-4870-a4ae-e6cb1cc2ebe2")
+	)
+	(hierarchical_label "FR Quad Encoder B Signal"
+		(shape output)
+		(at 171.45 144.78 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "2c035dbf-1eab-4ada-ba2f-a8c18a86d91f")
+	)
+	(hierarchical_label "FL (+)"
+		(shape input)
+		(at 166.37 58.42 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "2fc8dea8-9600-474a-9ac7-ab6c704f35c2")
+	)
+	(hierarchical_label "BR (-)"
+		(shape input)
+		(at 74.93 128.27 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "3da6ea19-1c07-4910-b556-471812b780e9")
+	)
+	(hierarchical_label "BR Quad Encoder B Signal"
+		(shape output)
+		(at 82.55 143.51 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "3ee7c89a-e95b-4eb3-a9f6-cc7b66cd9a35")
+	)
+	(hierarchical_label "BL (-)"
+		(shape input)
+		(at 76.2 58.42 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "56e81c82-7ffd-423c-a1e4-58d188e6923b")
+	)
+	(hierarchical_label "FR (-)"
+		(shape input)
+		(at 163.83 129.54 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "91a79544-23b3-44a4-8cd2-ba0e284bf034")
+	)
+	(hierarchical_label "FL (-)"
+		(shape input)
+		(at 166.37 62.23 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9ad141dd-0c09-4f04-b2f2-d20e9769983b")
+	)
+	(hierarchical_label "BR Quad Encoder A Signal"
+		(shape output)
+		(at 82.55 139.7 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ad3d0f65-aee3-4a53-a118-a67a542ba207")
+	)
+	(hierarchical_label "Quad Encoder +5V Vcc"
+		(shape input)
+		(at 76.2 93.98 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "b3984bce-4b8a-4050-b56d-450a9a3660ce")
+	)
+	(hierarchical_label "FR Quad Encoder A Signal"
+		(shape output)
+		(at 171.45 140.97 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "b5eaeb65-92fb-4f64-97d5-98d569a8432a")
+	)
+	(hierarchical_label "BR (+)"
+		(shape input)
+		(at 74.93 124.46 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "bfaa9b70-e683-4af7-b74f-1fd0f6162b3d")
+	)
+	(hierarchical_label "FL Quad Encoder B Signal"
+		(shape output)
+		(at 173.99 77.47 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c3dc2708-d182-4f2c-a9e8-3c38be033b09")
+	)
+	(hierarchical_label "BL Quad Encoder B Signal"
+		(shape output)
+		(at 76.2 73.66 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "c79e5b3c-f822-4b13-bd47-39adfd3941c6")
+	)
+	(hierarchical_label "FR (+)"
+		(shape input)
+		(at 163.83 125.73 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f93c3c7c-9c44-4498-ab45-966f845ca182")
+	)
+)

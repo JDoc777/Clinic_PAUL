@@ -1,0 +1,68 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "9e614149-90d2-44d6-ae56-d24debf00a78")
+	(paper "A4")
+	(lib_symbols)
+	(rectangle
+		(start 128.27 82.55)
+		(end 158.75 105.41)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 21480569-3801-400a-8a92-13bcf93f3bf0)
+	)
+	(hierarchical_label "GND"
+		(shape bidirectional)
+		(at 128.27 90.17 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "010dbe74-2e4b-44c1-ab88-304b08f8110a")
+	)
+	(hierarchical_label "+5 V"
+		(shape bidirectional)
+		(at 128.27 85.09 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "309d8ceb-f2e4-477d-81ee-ff149591d1dd")
+	)
+	(hierarchical_label "SCL"
+		(shape bidirectional)
+		(at 128.27 95.25 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d83b2d63-f593-4eb4-a0dc-ef74a7910701")
+	)
+	(hierarchical_label "SDA"
+		(shape bidirectional)
+		(at 128.27 100.33 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "db4c8f88-d99d-426b-b430-bb5c68f45d1e")
+	)
+)

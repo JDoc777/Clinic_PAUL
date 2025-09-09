@@ -1,0 +1,56 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "f7d4986d-738c-4a6d-9ca4-ec55e06e8f70")
+	(paper "A4")
+	(lib_symbols)
+	(rectangle
+		(start 86.36 64.77)
+		(end 157.48 110.49)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(fill
+			(type none)
+		)
+		(uuid 75e2e593-a2b2-4409-879e-465f2c124e54)
+	)
+	(hierarchical_label "Fan Signal"
+		(shape bidirectional)
+		(at 86.36 85.09 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "7d8ee3fb-545e-4af4-b6d3-74ef8315767d")
+	)
+	(hierarchical_label "+5v"
+		(shape output)
+		(at 86.36 73.66 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "b4077286-4873-45a4-aadc-8ffccdf53b0e")
+	)
+	(hierarchical_label "GND"
+		(shape bidirectional)
+		(at 86.36 80.01 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d29c7aa4-9843-48cc-acf7-b715765c6289")
+	)
+)
