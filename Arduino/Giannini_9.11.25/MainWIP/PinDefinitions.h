@@ -1,6 +1,8 @@
-
+#pragma once
+#include <Arduino.h>
 #ifndef PINS_H
 #define PINS_H
+
 
 
 //Motors/Wheels
@@ -70,11 +72,18 @@ inline constexpr uint8_t DHT1_Pin = 27;
 inline constexpr uint8_t DHT0_Type = 11;
 inline constexpr uint8_t DHT1_Type = 11;
 
+//I2C MPU-6050 Declaration
+inline constexpr uint8_t MPU_ADDR = 0x68;
+inline constexpr uint8_t MPU6050_PWR0 = 0x6B;
+
 //I2C Devices
 //======================================================================================
-//Servo Driver (PCA9685)
-#define SERVO_SCL1 D101 //NEEDS PIN
-#define SERVO_SDA1 D102 //NEEDS PIN
+//Servo Driver (PCA9685) - WORK IN PROGRESS
+/*#define SERVO_SCL1 D101 
+#define SERVO_SDA1 D102*/
+
+const int servoCount = 2; //Number of servos
+const int servoPins[] = {D101, D102};//Servo Pins
 
 //Gyro and Accelerometer (MPU-6050)
 #define GYRO_SCL 21
