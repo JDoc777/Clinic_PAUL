@@ -1,0 +1,46 @@
+#include <stdint.h> // For fixed-width integer types
+
+// Define the maximum payload size
+#define MAX_PAYLOAD_SIZE 256
+
+// Define packet structure
+typedef struct {
+    int16_t start_sequence[3]; // e.g., {0xAA, 0x55}
+    int16_t length;            // Length of data_payload
+    int16_t data_payload[MAX_PAYLOAD_SIZE];
+    int16_t checksum;
+} uart_packet_t;
+
+// Function to calculate checksum
+int16_t calculate_checksum(const int16_t* data, int16_t len) {
+    int16_t sum = 0;
+    for (int i = 0; i < len; i++) {
+        sum += data[i];
+    }
+    return sum; // Simple checksum
+}
+
+// Function to send a packet
+void send_uart_packet(const int16_t* data, int16_t len) {
+    uart_packet_t packet;
+
+    // Fill packet fields
+    packet.start_sequence[0] = 0xAA;
+    packet.start_sequence[1] = 0x55;
+    packet.start_sequence[2] = 0x00;
+    packet.start_sequence[3] = 0x00;
+    packet.length = len;
+    memcpy(packet.data_payload, data, len);
+    packet.checksum = calculate_checksum(data, len);
+
+    // Transmit packet bytes via UART
+    UART_transmit_byte(packet.start_sequence[0]);
+    UART_transmit_byte(packet.start_sequence[1]);
+    UART_transmit_byte(packet.start_sequence[2]);
+    UART_transmit_byte(packet.start_sequence[3]);
+    UART_transmit_byte(packet.length);
+    for (int i = 0; i < len; i++) {
+        UART_transmit_byte(packet.data_payload[i]);
+    }
+    UART_transmit_byte(packet.checksum);
+}
