@@ -154,7 +154,7 @@ def main():
         transition_delay=0.02,
         servo_directions=[1, 1, 1, 1, 1]
     )
-
+#Justin is a genius
     # Demo claw motion
     start_claw_demo_thread(
         running_event,
