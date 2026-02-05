@@ -1,12 +1,17 @@
-import threading #does not currently use threading bc its a nightmare
-import pyttsx3 
+from multiprocessing import Process #uses multiprocessing bc threads suck
+import pyttsx3
 
-class Verbalize: 
-    def __init__(self): 
-        self.engine = pyttsx3.init() 
-        print("Speech init done.") 
+def speak_process(text):
+    engine = pyttsx3.init()
+    engine.say(text)
+    engine.runAndWait()
 
-    def speakRawText(self, input): 
-        self.engine.say(input)
-        self.engine.runAndWait() 
-        print("Speaking done.")
+class Verbalize:
+    def speakRawText(self, text):
+        # Start a separate process to speak
+        p = Process(target=speak_process, args=(text,))
+        p.start()
+
+
+
+
