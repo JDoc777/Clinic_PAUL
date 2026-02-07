@@ -5,7 +5,7 @@ menu_active = False
 
 while True:
     try:
-        with sr.Microphone() as source:
+        with sr.Microphone(device_index=1) as source:
             print("Listening...")
             
             r.adjust_for_ambient_noise(source, duration=0.2)
