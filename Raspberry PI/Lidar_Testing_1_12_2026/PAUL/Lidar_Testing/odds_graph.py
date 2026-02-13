@@ -26,6 +26,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtCore, QtGui  # <-- QtGui needed for QTransform
 
 
+
 # ---------------- SERIAL / LIDAR CONFIG ----------------
 SERIAL_PORT = "/dev/ttyUSB0"
 BAUDRATE = 115200

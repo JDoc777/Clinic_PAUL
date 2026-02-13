@@ -200,6 +200,7 @@ class SonarObstacleLocalMap:
         self.R_obstacle_x_fused, self.R_obstacle_y_fused = self.R_calculate_obstacle_positions(fused_pose['theta'], fix_distance(self.R_raw), self.R_sensor_pos_fused)
         self.L_obstacle_x_fused, self.L_obstacle_y_fused = self.L_calculate_obstacle_positions(fused_pose['theta'], fix_distance(self.L_raw), self.L_sensor_pos_fused)
         self.B_obstacle_x_fused, self.B_obstacle_y_fused = self.B_calculate_obstacle_positions(fused_pose['theta'], fix_distance(self.B_raw), self.B_sensor_pos_fused)
+        #print(F"fused_pose from sonar: {fused_pose}")
         '''print(f"F_obstacle_fused!!!!!: x={self.F_obstacle_x_fused:.4f} m, y={self.F_obstacle_y_fused:.4f} m")
         print(f"R_obstacle_fused!!!!!: x={self.R_obstacle_x_fused:.4f} m, y={self.R_obstacle_y_fused:.4f} m")
         print(f"L_obstacle_fused!!!!!: x={self.L_obstacle_x_fused:.4f} m, y={self.L_obstacle_y_fused:.4f} m")

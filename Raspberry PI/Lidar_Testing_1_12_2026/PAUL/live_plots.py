@@ -12,6 +12,9 @@ from testingUART import UARTSharedData
 # Import fused_pose from obstacle_grid_processing
 from obstacle_grid_processing import fused_pose
 from reverse_kinematics import ReverseKinematics
+from lidar_local_map import LidarLocalMap
+from lidar_obstacle_map import LidarObstacleMap
+
 
 
 # Set the background color to white
@@ -256,6 +259,62 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_binary.addItem(astar_raw_path)
     plot_binary.addItem(astar_smooth_path)
 
+        # ---------------- LiDAR Scan Plot (Robot Frame) ----------------
+    '''plot_lidar = win.addPlot(title="LiDAR Scan (Robot Frame)")
+    plot_lidar.setAspectLocked(True)
+    plot_lidar.setXRange(-3, 3)
+    plot_lidar.setYRange(-3, 3)
+    plot_lidar.showGrid(x=True, y=True, alpha=0.3)
+
+    lidar_scatter = pg.ScatterPlotItem(size=3, brush=pg.mkBrush(120, 0, 255, 160))  # purple-ish
+    plot_lidar.addItem(lidar_scatter)
+
+    # robot origin marker
+    lidar_origin = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 0, 200))
+    lidar_origin.setData([0.0], [0.0])
+    plot_lidar.addItem(lidar_origin)'''
+
+        # --- LiDAR Local Map Plot ---
+    plot_lidar = win.addPlot(title="LiDAR Local Map")
+    plot_lidar.setAspectLocked(True)
+    plot_lidar.setXRange(-3, 3)
+    plot_lidar.setYRange(-3, 3)
+    plot_lidar.showGrid(x=True, y=True, alpha=0.3)
+        # --- Robot trajectory on LiDAR plot ---
+    lidar_traj_curve = plot_lidar.plot(pen=pg.mkPen('b', width=2))
+    lidar_traj_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
+    plot_lidar.addItem(lidar_traj_dot)
+
+    lidar_traj_x = []
+    lidar_traj_y = []
+
+    lidar_scatter = pg.ScatterPlotItem(
+        size=3,
+        brush=pg.mkBrush(255, 0, 255, 180)  # magenta
+    )
+    plot_lidar.addItem(lidar_scatter)
+
+        # Robot position dot (LiDAR plot)
+    lidar_robot_dot = pg.ScatterPlotItem(
+        size=12,
+        brush=pg.mkBrush(0, 0, 255, 200)  # blue
+    )
+    plot_lidar.addItem(lidar_robot_dot)
+
+        # --- LiDAR Occupancy Grid Plot ---
+    plot_lidar_grid = win.addPlot(title="LiDAR Occupancy Grid")
+    plot_lidar_grid.setAspectLocked(True)
+    plot_lidar_grid.setXRange(0, grid.grid.shape[1])
+    plot_lidar_grid.setYRange(0, grid.grid.shape[0])
+    plot_lidar_grid.showGrid(x=True, y=True, alpha=0.3)
+
+    lidar_grid_img = pg.ImageItem()
+    plot_lidar_grid.addItem(lidar_grid_img)
+
+
+
+
+
     def update():
         # Occupancy grid
         grid_disp = np.zeros_like(grid.grid, dtype=np.uint8)
@@ -455,8 +514,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
 
             
 
-            
-
         # Binary map visualization
         binary_map = (grid.grid > 0).astype(int)  # Convert grid to binary map
         binary_img = (binary_map * 255).astype(np.uint8)  # Scale binary values to 0-255
@@ -516,6 +573,83 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             robot_position_dot.setData([], [])
             goal_position_dot.setData([], [])
             robot_trajectory_line.setData([], [])
+        
+            # ---------------- LiDAR Scan (Robot Frame) ----------------
+        '''try:
+            scan = None
+            if hasattr(grid, "lidar_proc") and grid.lidar_proc is not None:
+                scan = grid.lidar_proc.get_latest_scan()
+
+            if scan is not None and scan.ranges_m.size > 0:
+                ang = scan.angles_rad
+                rng = scan.ranges_m
+
+                # Optional downsample so plot is fast
+                step = 6
+                ang = ang[::step]
+                rng = rng[::step]
+
+                # Convert polar -> xy in robot frame
+                x = rng * np.cos(ang)
+                y = rng * np.sin(ang)
+
+                spots = [{'pos': (float(xi), float(yi))} for xi, yi in zip(x, y)]
+                lidar_scatter.setData(spots=spots)
+            else:
+                lidar_scatter.setData([])
+        except Exception:
+            lidar_scatter.setData([])
+        '''
+        # --- LiDAR local map points ---
+        try:
+            lidar_map = grid.lidar_map
+            pts = lidar_map.points_world
+
+            if pts:
+                xs, ys = zip(*pts)
+                lidar_scatter.setData(xs, ys)
+            else:
+                lidar_scatter.setData([], [])
+
+        except Exception:
+            lidar_scatter.setData([], [])
+
+        # --- Robot position on LiDAR plot ---
+        try:
+            x = fused_pose['x']
+            y = fused_pose['y']
+            lidar_robot_dot.setData([x], [y])
+            # Append trajectory if moved
+            if not lidar_traj_x or (abs(x - lidar_traj_x[-1]) > 1e-4 or abs(y - lidar_traj_y[-1]) > 1e-4):
+                lidar_traj_x.append(x)
+                lidar_traj_y.append(y)
+
+            lidar_traj_curve.setData(lidar_traj_x, lidar_traj_y)
+            lidar_traj_dot.setData([x], [y])
+        except Exception:
+            lidar_robot_dot.setData([], [])
+
+        try:
+            lidar_grid = grid.grid   # same grid for now
+
+            # Normalize log-odds to grayscale
+            disp = np.clip(lidar_grid, -5, 5)
+            lidar_img = ((disp + 5) * (255.0 / 10)).astype(np.uint8)
+
+            lidar_grid_img.setImage(np.flipud(lidar_img.T), levels=(0, 255))
+            lidar_grid_img.setRect(
+                QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0])
+            )
+
+        except Exception:
+            pass
+
+        
+    
+
+
+
+
 
     timer = QtCore.QTimer()
     timer.timeout.connect(update)

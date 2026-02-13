@@ -185,19 +185,19 @@ class ObstacleGrid:
         # for testing purposes, we are removing the alpha when not testing add this back (1 - a) * self.accel_processor.theta
         fused_pose['theta'] = a * (robot_position['angle']) + self.accel_processor.theta
         fused_pose['theta'] = fused_pose['theta'] % (2 * math.pi)  # Clamp between 0 and 2π
-        #print(f"Fused angle (degrees): {math.degrees(fused_pose['theta']):.4f}")
+        print(f"Fused angle (degrees): {math.degrees(fused_pose['theta']):.4f}")
         return fused_pose['theta']
 
     def odometry(self):
         fused_pose['x'] = robot_position['x']
         fused_pose['y'] = robot_position['y']
-        #print(f"Fused position: x={fused_pose['x']:.4f} m, y={fused_pose['y']:.4f} m")
+        print(f"Fused position: x={fused_pose['x']:.4f} m, y={fused_pose['y']:.4f} m")
         return fused_pose['x'], fused_pose['y']
     
     def setup_grid(self, width_m, height_m, cell_size):
         width = int(width_m / cell_size)
         height = int(height_m / cell_size)
-        self.grid = np.zeros((height, width), dtype=int)
+        self.grid = np.zeros((height, width), dtype=np.float32)
         # Center the robot at the middle of the grid at start
         self.x_origin = - (width_m / 2.0)
         self.y_origin = - (height_m / 2.0)

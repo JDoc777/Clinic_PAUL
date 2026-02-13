@@ -13,6 +13,9 @@ import DHT_processing
 import obstacle_grid_processing
 import reverse_kinematics
 import LCD_processing
+import lidar_processing
+import lidar_local_map
+import lidar_obstacle_map
 
 from claw import start_claw_controller, start_claw_demo_thread
 from live_plots import pg_live_plot_loop, QApplication
@@ -347,6 +350,9 @@ def main():
         debug=True
     )
 
+    
+
+
     DHT_processing.create_and_run(shared_data, poll=0.1)
 
     lcd_proc = LCD_processing.create_and_run(shared_data, poll=0.9)
@@ -378,6 +384,19 @@ def main():
 
     # Live pg_plot window
     grid = obstacle_grid_processing.create_and_run(shared_data, poll=0.005)
+
+    lidar_proc = lidar_processing.LidarProcessor(shared_data, debug=True)
+
+    lidar_map = lidar_local_map.LidarLocalMap(lidar_proc, poll=0.02)
+
+    lidar_obs = lidar_obstacle_map.LidarObstacleMap(lidar_map, grid, poll=0.05)
+
+    #grid.lidar_proc = lidar_proc
+
+    grid.lidar_map = lidar_map
+    grid.lidar_obs = lidar_obs
+
+
 
     print("[System] Launching live plot window...")
 
