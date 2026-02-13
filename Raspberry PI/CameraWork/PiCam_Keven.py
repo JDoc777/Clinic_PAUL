@@ -1,7 +1,7 @@
 import time
 import cv2
 from picamera2 import Picamera2
-import YOLO as YOLO
+from ultralytics import YOLO
 
 
 # ----------------------------
