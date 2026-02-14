@@ -389,12 +389,12 @@ def main():
 
     lidar_map = lidar_local_map.LidarLocalMap(lidar_proc, poll=0.02)
 
-    lidar_obs = lidar_obstacle_map.LidarObstacleMap(lidar_map, grid, poll=0.05)
-
-    #grid.lidar_proc = lidar_proc
+    # 🔥 IMPORTANT: pass lidar_proc, NOT lidar_map
+    lidar_obs = lidar_obstacle_map.LidarObstacleMap(lidar_proc, grid, poll=0.5)
 
     grid.lidar_map = lidar_map
     grid.lidar_obs = lidar_obs
+
 
 
 

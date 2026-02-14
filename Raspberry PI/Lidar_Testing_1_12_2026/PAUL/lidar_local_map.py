@@ -29,10 +29,11 @@ class LidarLocalMap:
         x = fused_pose['x']
         y = fused_pose['y']
         theta = fused_pose['theta']
-        print(f"[LidarLocalMap] Robot pose: x={x:.2f} m, y={y:.2f} m, theta={np.degrees(theta):.1f} deg", flush=True)
+        #print(f"[LidarLocalMap] Robot pose: x={x:.2f} m, y={y:.2f} m, theta={np.degrees(theta):.1f} deg", flush=True)
 
-        angles = scan.angles_rad + theta
-        ranges = scan.ranges_m
+        angles = scan.angles_rad
+        angles = -angles
+        ranges = scan.ranges_m 
 
         xs = x + ranges * np.cos(angles)
         ys = y + ranges * np.sin(angles)

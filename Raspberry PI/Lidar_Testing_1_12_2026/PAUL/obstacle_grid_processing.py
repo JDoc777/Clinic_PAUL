@@ -67,6 +67,10 @@ class ObstacleGrid:
         self.prev_theta = None
         self.prev_time = None
         self.setup_grid(width_m=10, height_m=10, cell_size=self.cell_size)
+                # --- Selective decay setup ---
+        self.observed_mask = np.zeros_like(self.grid, dtype=bool)
+        self.DECAY = 0.98  # tune this (0.995 slow, 0.98 faster)
+
 
     def loop(self):
         
@@ -177,6 +181,13 @@ class ObstacleGrid:
                     self.wp_x, self.wp_y = self.goal_x, self.goal_y   # fallback to final goal
             else:
                 self.wp_x, self.wp_y, self.wp_theta = fused_pose['x'], fused_pose['y'], fused_pose['theta']  # stay put
+        # ---------------------------
+        # Selective decay (once per loop)
+        # ---------------------------
+        self.grid[~self.observed_mask] *= self.DECAY
+
+        # Reset mask for next cycle
+        self.observed_mask.fill(False)
 
 
 
@@ -254,15 +265,17 @@ class ObstacleGrid:
 
         height, width = self.grid.shape
 
-        # mark free cells along the ray
         for (ix, iy) in cells[:-1]:
             if 0 <= ix < width and 0 <= iy < height:
                 self.grid[iy, ix] += l_free
+                self.observed_mask[iy, ix] = True
+
 
         # mark the last cell (hit point) as occupied
         ix, iy = cells[-1]
         if 0 <= ix < width and 0 <= iy < height:
             self.grid[iy, ix] += l_occ * conf_interval
+            self.observed_mask[iy, ix] = True
 
         # clamp to range
         self.grid = np.clip(self.grid, -10, 10)
@@ -328,9 +341,9 @@ class ObstacleGrid:
         w_from_pose = dtheta / dt
 
         # choose what you want here:
-        w_fused = gyro_z  # or blend gyro + pose
-        #alpha = 0.98
-        #w_fused = alpha*gyro_z + (1-alpha)*w_from_pose
+        #w_fused = gyro_z  # or blend gyro + pose
+        alpha = 0.5
+        w_fused = alpha*gyro_z + (1-alpha)*w_from_pose
 
         # update history
         self.prev_x = x

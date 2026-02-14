@@ -7,13 +7,13 @@ from obstacle_grid_processing import fused_pose
 
 class LidarObstacleMap:
     """
-    LiDAR log-odds update identical to sonar log_odometry style.
-    Uses world-frame points + fused_pose origin.
+    LiDAR log-odds update using RAW scan data.
+    Does NOT depend on lidar_local_map visualization.
     """
 
-    def __init__(self, lidar_map, grid, poll=0.05):
-        self.lidar_map = lidar_map
-        self.grid_obj = grid  # ObstacleGrid instance
+    def __init__(self, lidar_processor, grid, poll=0.05):
+        self.lidar = lidar_processor      # <-- pass lidar_map
+        self.grid_obj = grid              # ObstacleGrid instance
         self.poll = poll
 
         self._running = True
@@ -26,19 +26,45 @@ class LidarObstacleMap:
             time.sleep(self.poll)
 
     def update_from_lidar(self):
-        pts = self.lidar_map.points_world
-        if not pts:
+
+        scan = self.lidar.get_latest_scan()
+        if scan is None:
             return
 
-        for (x_hit, y_hit) in pts:
+        x_robot = fused_pose['x']
+        y_robot = fused_pose['y']
+        theta   = fused_pose['theta']
+
+        angles = scan.angles_rad
+        ranges = scan.ranges_m 
+
+        for a, r in zip(angles, ranges):
+
+            
+
+            xr = r*np.cos(a)
+            yr = r*np.sin(a)
+
+            c = np.cos(theta)
+            s = np.sin(theta)
+        
+
+            x_hit = x_robot + c * xr - s * yr
+            y_hit = y_robot + s * xr + c * yr
+
+            print(f"angles={angles}")
+        
+
+            
+
             self.log_odometry(x_hit, y_hit)
 
     # ------------------------------------------------
-    # EXACT SAME STYLE AS sonar log_odometry()
+    # Log-odds update (same structure as sonar)
     # ------------------------------------------------
     def log_odometry(self, X_hit_world, Y_hit_world):
 
-        l_occ = +2.0
+        l_occ  = +2.0
         l_free = -3.0
 
         X_robot = fused_pose['x']
