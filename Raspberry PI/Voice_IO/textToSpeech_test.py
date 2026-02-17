@@ -1,132 +1,57 @@
+import threading
+import queue
+import numpy as np
+import sounddevice as sd
+from piper import PiperVoice
 
-# import pyttsx3
-# import textToSpeech
-# engine = pyttsx3.init()
-# engine.say("Please print")
-# engine.runAndWait()
-# if __name__ == "__main__":
 
-#     v = textToSpeech.Verbalize()
-#     print("Before speech")
-#     v.speakRawText("Hello from a background process")
-#     print("Program continues immediately")
-#     v.speakRawText("it might work")
-#     print("Please print")
+class VoiceEngine:
+    def init(self, model_path):
+        self.voice = PiperVoice.load(model_path)
 
-# import subprocess
-# import threading
-# import time
-# from queue import Queue
+        self.text_queue = queue.Queue()
+        self.stop_event = threading.Event()
 
-# def speaker(queue):
-#     while True:
-#         item = queue.get()
-#         if item is None:      # shutdown signal
-#             break
+        self.audio_thread = threading.Thread(
+            target=self._audio_worker,
+            daemon=True
+        )
+        self.audio_thread.start()
 
-#         text, delay = item
-#         time.sleep(delay)
-#         subprocess.run([
-#             "espeak-ng",
-#             "-v","en-us+f3", #Type of voice
-#             "-a", "100", #Amplitude (0-200)
-#             "-p", "30", #Pitch (0-99)
-#             "-s", "140", #Speed (words per minute)
-#             "-k", "40", #Word gap (0-99)
-#             text
-#         ], check=True)
-#         queue.task_done()
+        print("Voice engine initialized.")
 
-# # Create the queue
-# speech_queue = Queue()
+    def speak(self, text):
+        """Add text to speech queue (non-blocking)."""
+        self.text_queue.put(text)
 
-# # Start ONE speaker thread
-# speaker_thread = threading.Thread(target=speaker, args=(speech_queue,))
-# speaker_thread.start()
+    def shutdown(self):
+        """Clean shutdown."""
+        self.stop_event.set()
+        self.text_queue.put(None)
+        self.audio_thread.join()
+        print("Voice engine shutdown complete.")
 
-# # Enqueue lines (POP order)
-# lines = [
-#     ("Hello I am PAUL ", 0.1),
-    
-# ]
+    def _audio_worker(self):
+        """Runs in background thread."""
+        while not self.stop_event.is_set():
+            text = self.text_queue.get()
 
-# for line in lines:
-#     speech_queue.put(line)
+            if text is None:
+                break
 
-# # Wait for all speech to finish
-# speech_queue.join()
+            try:
+                for chunk in self.voice.synthesize(text):
+                    audio = np.frombuffer(
+                        chunk.audio_int16_bytes,
+                        dtype=np.int16
+                    )
 
-# # Stop the speaker thread
-# speech_queue.put(None)
-# speaker_thread.join()
+                    sd.play(audio, samplerate=chunk.sample_rate)
+                    sd.wait()
 
-# print("Done Speaking")
+            except Exception as e:
+                print("Audio error:", e)
 
-# import subprocess
-# import threading
-# import time
-# import tempfile
-# import os
-# from queue import Queue
+            self.text_queue.task_done()
 
-# PIPER_MODEL = "/home/justina/piper-voices/en_US-jenny-medium.onnx"  # <-- change this
-
-# def speak_piper(text: str):
-#     # Make a temp wav file
-#     fd, wav_path = tempfile.mkstemp(suffix=".wav")
-#     os.close(fd)
-
-#     try:
-#         # Generate speech -> wav (piper reads text from stdin)
-#         subprocess.run(
-#             ["piper", "--model", PIPER_MODEL, "--output_file", wav_path],
-#             input=text,
-#             text=True,
-#             check=True
-#         )
-
-#         # Play wav (ALSA)
-#         subprocess.run(["aplay", wav_path], check=True)
-
-#     finally:
-#         # Clean up
-#         if os.path.exists(wav_path):
-#             os.remove(wav_path)
-
-# def speaker(queue: Queue):
-#     while True:
-#         item = queue.get()
-#         if item is None:
-#             queue.task_done()
-#             break
-
-#         text, delay = item
-#         time.sleep(delay)
-
-#         speak_piper(text)
-
-#         queue.task_done()
-
-# speech_queue = Queue()
-
-# speaker_thread = threading.Thread(target=speaker, args=(speech_queue,), daemon=True)
-# speaker_thread.start()
-
-# lines = [
-#     ("Hello I am PAUL the programmable autonomous utility lift. I am your personal assistant.", 0.1),
-# ]
-
-# for line in lines:
-#     speech_queue.put(line)
-
-# speech_queue.join()
-
-# speech_queue.put(None)
-# speech_queue.join()
-
-# print("Done Speaking")
-
-# flite -voice slt "Write words here" output.wav
-# This voice is "good enough" 
-# Currerently it creates a .wav file, need to be able to play it via code.
-
+            
