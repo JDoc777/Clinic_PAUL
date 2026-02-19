@@ -5,6 +5,9 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QSlider, QLabel
 from PyQt5.QtCore import Qt, QTimer
 import pyqtgraph.opengl as gl
 
+PREV_IK = None
+
+
 # ===================== ARM GEOMETRY =====================
 ARM = {
     "L1": 10.0,
@@ -38,12 +41,11 @@ SERVO_DIRECTIONS = {
     "elbow": 1
 }
 
-
 # ===================== UTILS =====================
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
-#Classify reachability
+# ===================== REACHABILITY =====================
 def classify_reachability(x, y, z, arm):
     L1, L2 = arm["L1"], arm["L2"]
     base_h = arm["base_height"]
@@ -55,40 +57,32 @@ def classify_reachability(x, y, z, arm):
     max_reach = L1 + L2
     min_reach = abs(L1 - L2)
 
-    # if dist > max_reach or dist < min_reach:
-    #     return "unreachable"
-    # elif dist > 0.92 * max_reach:
-    #     return "near_singularity"
-    # else:
-    #     return "safe"
-
-# Choose deeper fold when target is close
-if dist < 0.7 * (L1 + L2):
-    theta_shoulder = theta_shoulder_2
-else:
-    theta_shoulder = theta_shoulder_1
-
-
-
+    if dist > max_reach or dist < min_reach:
+        return "unreachable"
+    elif dist > 0.92 * max_reach:
+        return "near_singularity"
+    else:
+        return "safe"
 
 # ===================== IK SOLVER (MATH SPACE) =====================
-def solve_ik_3d(x, y, z, arm):
+def solve_ik_3d(x, y, z, arm, prev_angles=None):
     L1, L2 = arm["L1"], arm["L2"]
     base_h = arm["base_height"]
 
+    # Base rotation
     theta_base = math.atan2(y, x)
 
     r = math.sqrt(x*x + y*y)
     z_eff = z - base_h
-
     dist2 = r*r + z_eff*z_eff
     dist = math.sqrt(dist2)
 
     if dist > (L1 + L2) or dist < abs(L1 - L2):
         return None
 
+    # Elbow angle (elbow-up branch)
     D = clamp((dist2 - L1*L1 - L2*L2) / (2*L1*L2), -1, 1)
-    theta_elbow = -math.acos(D) #Elbow up solution
+    theta_elbow = -math.acos(D)
 
     phi = math.atan2(z_eff, r)
     psi = math.atan2(
@@ -96,21 +90,39 @@ def solve_ik_3d(x, y, z, arm):
         L1 + L2 * math.cos(theta_elbow)
     )
 
-    theta_shoulder_1 = phi - psi
-    theta_shoulder_2 = phi + psi
+    # Generate BOTH shoulder solutions
+    solutions = []
 
-    angles = {
-        "base": math.degrees(theta_base),
-        "shoulder": math.degrees(theta_shoulder),
-        "elbow": math.degrees(theta_elbow)
-    }
+    for theta_shoulder in (phi - psi, phi + psi):
+        angles = {
+            "base": math.degrees(theta_base),
+            "shoulder": math.degrees(theta_shoulder),
+            "elbow": math.degrees(theta_elbow)
+        }
 
-    # Apply joint limits (math space)
-    for j in angles:
-        lo, hi = JOINT_LIMITS[j]
-        angles[j] = clamp(angles[j], lo, hi)
+        # Enforce joint limits
+        valid = True
+        for j in angles:
+            lo, hi = JOINT_LIMITS[j]
+            if not (lo <= angles[j] <= hi):
+                valid = False
+                break
 
-    return angles
+        if valid:
+            solutions.append(angles)
+
+    if not solutions:
+        return None
+
+    # First frame: pick any valid solution
+    if prev_angles is None:
+        return solutions[0]
+
+    # Continuity: pick closest solution
+    def joint_distance(sol):
+        return sum((sol[j] - prev_angles[j]) ** 2 for j in sol)
+
+    return min(solutions, key=joint_distance)
 
 # ===================== FORWARD KINEMATICS =====================
 def forward_kinematics(angles, arm):
@@ -141,7 +153,7 @@ def forward_kinematics(angles, arm):
 def ik_to_servo_angles(ik_angles):
     servo = {}
     for j in ik_angles:
-        val =  SERVO_DIRECTIONS[j] * ik_angles[j] + SERVO_OFFSETS[j]
+        val = SERVO_DIRECTIONS[j] * ik_angles[j] + SERVO_OFFSETS[j]
         lo, hi = SERVO_LIMITS[j]
         servo[j] = clamp(val, lo, hi)
     return servo
@@ -154,13 +166,13 @@ win.setWindowTitle("3D IK Arm Simulator")
 
 view = gl.GLViewWidget()
 view.setCameraPosition(distance=35, elevation=25)
-layout.addWidget(view)
+layout.addWidget(view, stretch=5)
 
 grid = gl.GLGridItem()
 grid.scale(2, 2, 1)
 view.addItem(grid)
 
-arm_line = gl.GLLinePlotItem(width=4, color=(1, 0, 0, 1))
+arm_line = gl.GLLinePlotItem(width=4)
 view.addItem(arm_line)
 
 target_dot = gl.GLScatterPlotItem(size=10, color=(0, 1, 0, 1))
@@ -179,8 +191,19 @@ lbl_x, sx = make_slider("X", -20, 20, 12)
 lbl_y, sy = make_slider("Y", -20, 20, 0)
 lbl_z, sz = make_slider("Z", 0, 25, 10)
 
+# ===== Option B: Angle display labels (ADDED) =====
+lbl_base = QLabel("Base: 0.0°")
+lbl_shoulder = QLabel("Shoulder: 0.0°")
+lbl_elbow = QLabel("Elbow: 0.0°")
+
+layout.addWidget(lbl_base)
+layout.addWidget(lbl_shoulder)
+layout.addWidget(lbl_elbow)
+
 # ===================== UPDATE LOOP =====================
 def update():
+    global PREV_IK
+
     x, y, z = sx.value(), sy.value(), sz.value()
     lbl_x.setText(f"X: {x}")
     lbl_y.setText(f"Y: {y}")
@@ -190,10 +213,18 @@ def update():
 
     status = classify_reachability(x, y, z, ARM)
 
-    ik = solve_ik_3d(x, y, z, ARM)
+    ik = solve_ik_3d(x, y, z, ARM, PREV_IK)
     if ik is None:
         arm_line.setData(color=(1, 0, 0, 1))
         return
+
+    # store previous solution for continuity
+    PREV_IK = ik
+
+    # ===== Option B: update angle labels (ADDED) =====
+    lbl_base.setText(f"Base: {ik['base']:.1f}°")
+    lbl_shoulder.setText(f"Shoulder: {ik['shoulder']:.1f}°")
+    lbl_elbow.setText(f"Elbow: {ik['elbow']:.1f}°")
 
     pts = forward_kinematics(ik, ARM)
 
@@ -205,6 +236,7 @@ def update():
         color = (1, 0, 0, 1)
 
     arm_line.setData(pos=pts, color=color)
+
 
 timer = QTimer()
 timer.timeout.connect(update)
