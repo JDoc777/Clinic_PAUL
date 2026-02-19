@@ -11,7 +11,7 @@ from matplotlib.lines import Line2D
 # -------- SETTINGS --------
 CAMERA_SIZE = (1920, 1080)
 
-YOLO_SIZE = 256            # try 192 first; 256 if you want better accuracy
+YOLO_SIZE = 256
 CONF_THRES = 0.45
 MODEL_PATH = "yolov8n.pt"
 
@@ -23,8 +23,13 @@ MATCH_MAX_DEG = 8.0
 PRINT_HZ = 8
 
 SHOW_TEXT_LABELS = True
+USE_ATAN_MAPPING = True
 
-USE_ATAN_MAPPING = True    # <-- improves pixel->angle accuracy (recommended)
+# ---- NEW: "giant object" filters (ignore edge-to-edge background rectangles) ----
+MAX_BOX_W_FRAC = 0.90      # ignore if bbox width > 90% of image width
+MAX_BOX_H_FRAC = 0.90      # ignore if bbox height > 90% of image height
+MAX_BOX_AREA_FRAC = 0.70 # ignore if bbox area > 60% of image area
+DEBUG_PRINT_HUGE_REJECTS = False  # set True to see what gets rejected
 # --------------------------
 
 torch.set_num_threads(1)
@@ -37,13 +42,10 @@ snap_lock = threading.Lock()
 snapshots = deque()  # (timestamp, list_of_tracks)
 
 def pixel_x_to_angle_deg_linear(x, img_w, hfov_deg):
-    """Linear approximation (what you were using)."""
     x_norm = (x - (img_w / 2.0)) / (img_w / 2.0)
     return x_norm * (hfov_deg / 2.0)
 
 def pixel_x_to_angle_deg_atan(x, img_w, hfov_deg):
-    """More correct pinhole camera mapping using fx from HFOV."""
-    # fx = (W/2) / tan(HFOV/2)
     fx = (img_w / 2.0) / math.tan(math.radians(hfov_deg / 2.0))
     return math.degrees(math.atan2((x - (img_w / 2.0)), fx))
 
@@ -71,6 +73,8 @@ print("Model loaded.")
 def yolo_worker():
     global latest_frame, running
     img_w = CAMERA_SIZE[0]
+    img_h = CAMERA_SIZE[1]
+    img_area = img_w * img_h
 
     tracks = {}
     next_id = 1
@@ -100,6 +104,21 @@ def yolo_worker():
                 label = model.names[cls_id]
 
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
+
+                # ---- NEW: reject giant boxes (edge-to-edge background) ----
+                box_w = max(0.0, x2 - x1)
+                box_h = max(0.0, y2 - y1)
+                box_area = box_w * box_h
+
+                w_frac = box_w / img_w if img_w else 0.0
+                h_frac = box_h / img_h if img_h else 0.0
+                area_frac = box_area / img_area if img_area else 0.0
+
+                if (w_frac > MAX_BOX_W_FRAC) or (h_frac > MAX_BOX_H_FRAC) or (area_frac > MAX_BOX_AREA_FRAC):
+                    if DEBUG_PRINT_HUGE_REJECTS:
+                        print(f"REJECT HUGE: {label} conf={conf:.2f} w={w_frac:.2f} h={h_frac:.2f} area={area_frac:.2f}")
+                    continue
+                # -----------------------------------------------
 
                 a_left  = pixel_x_to_angle_deg(x1, img_w, HFOV_DEG)
                 a_right = pixel_x_to_angle_deg(x2, img_w, HFOV_DEG)
@@ -213,19 +232,16 @@ def plot_worker():
             ts_last, tracks_last = snap_copy[-1]
             x_last = ts_last - t0
 
-            # group confidences by label for legend "interval"
             conf_by_label = {}
             for tr in tracks_last:
                 conf_by_label.setdefault(tr["label"], []).append(tr["conf"])
 
-            # text labels for latest snapshot only
             if SHOW_TEXT_LABELS:
                 for tr in tracks_last:
                     c = get_color_for_label(tr["label"])
                     y_mid = 0.5 * (tr["a_min"] + tr["a_max"])
                     ax.text(x_last + 0.05, y_mid, f"{tr['label']}#{tr['id']}", color=c, fontsize=8, va="center")
 
-            # build legend ONLY from currently visible labels, with confidence range
             for lab, confs in sorted(conf_by_label.items()):
                 c = get_color_for_label(lab)
                 cmin = min(confs)

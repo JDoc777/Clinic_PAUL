@@ -8,7 +8,7 @@ torch.set_num_threads(1)
 
 # -------- SETTINGS --------
 CAMERA_SIZE = (640, 480)
-YOLO_SIZE = 256
+YOLO_SIZE = 192
 CONF_THRES = 0.35
 MODEL_PATH = "yolov8n.pt"
 # --------------------------
