@@ -14,7 +14,7 @@ from piper import PiperVoice
 import time
 import os
 
-sd.default.device = (None, 2)  # USB speakers
+sd.default.device = (None, 1)  # USB speakers
 sd.default.samplerate = 22050  # Piper default
 
 class VoiceEngine:

@@ -1,7 +1,7 @@
 import threading
 import time
 from Discord_Listen import DiscordListener
-#Remember to remove token before pushing. Git will not be happy with you if not
+import ttsNoQ_switch as noQ
 TOKEN = ""
 #reeerecd
 shared_state = { #this will be needed for top level paul
@@ -9,6 +9,11 @@ shared_state = { #this will be needed for top level paul
     "new_flag": False,
     "lock": threading.Lock()
 }
+
+engine = noQ.VoiceEngine(
+    "/home/shaboiken/Documents/GitHub/Clinic_PAUL/Raspberry PI/Voice_IO/en_GB-northern_english_male-medium.onnx",
+    0.05
+) 
 
 listener = DiscordListener(
     token=TOKEN,
@@ -25,5 +30,6 @@ while True:
             msg = shared_state["latest_string"]
             shared_state["new_flag"] = False
             print("god help", msg)
+            engine.speak(msg)
 
     time.sleep(0.05)  # 50 milliseconds

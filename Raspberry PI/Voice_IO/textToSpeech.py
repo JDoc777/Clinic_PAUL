@@ -10,7 +10,7 @@ sd.default.samplerate = 22050 #Don't touch
 class VoiceEngine:
     def __init__(self, model_path):
         self.voice = PiperVoice.load(model_path)
-
+        
         self.text_queue = queue.Queue()
         self.stop_event = threading.Event()
 
@@ -58,7 +58,7 @@ class VoiceEngine:
 
 # sd.default.device = (None, 2)
 # sd.default.samplerate = 22050
-# print(sd.query_devices())
+print(sd.query_devices())
 
 # print("Pre engine initialization")
 # engine = VoiceEngine(

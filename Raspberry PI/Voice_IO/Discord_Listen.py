@@ -30,8 +30,8 @@ class DiscordListener:
         @self.client.event
         async def on_message(message):
 
-            if message.author.bot:
-                return
+           # if message.author.bot:
+           #     return
 
             if message.channel.name != self.channel_name:
                 return
