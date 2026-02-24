@@ -7,13 +7,22 @@ from collections import deque
 import math
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import cv2
 
 # -------- SETTINGS --------
-CAMERA_SIZE = (1920, 1080)
+MAIN_SIZE  = (1920, 1080)     # keep this for "full FOV / angle math"
+LORES_SIZE = (1720, 1080)       # run YOLO + preview on this (fast)
 
-YOLO_SIZE = 256            # try 192 first; 256 if you want better accuracy
-CONF_THRES = 0.5
+YOLO_IMGSZ = 384           # 192/256 recommended for Pi
 MODEL_PATH = "yolov8n.pt"
+
+# Let more boxes survive NMS, but not crazy low (0.05 was heavy/noisy)
+PREDICT_CONF = 0.20
+PREDICT_IOU  = 0.75
+AGNOSTIC_NMS = False
+
+# Final filter after boxes survive NMS
+CONF_THRES = 0.25
 
 HFOV_DEG = 102.0
 PLOT_WINDOW_SEC = 10.0
@@ -22,37 +31,53 @@ TRACK_TTL_SEC = 1.2
 MATCH_MAX_DEG = 8.0
 PRINT_HZ = 8
 
-SHOW_TEXT_LABELS = True
+MIN_HIT_STREAK = 3
 
-USE_ATAN_MAPPING = True    # <-- improves pixel->angle accuracy (recommended)
+SHOW_TEXT_LABELS = True
+USE_ATAN_MAPPING = True
+
+MAX_BOX_W_FRAC = 0.95
+MAX_BOX_H_FRAC = 0.95
+MAX_BOX_AREA_FRAC = 0.80
+DEBUG_PRINT_HUGE_REJECTS = False
+
+# Preview (cheap now because it's lores)
+ENABLE_PREVIEW = True
+PREVIEW_EVERY_N_FRAMES = 5    # can be small since lores is cheap
+DRAW_TRACK_SPANS_ON_PREVIEW = True
 # --------------------------
 
 torch.set_num_threads(1)
 
-latest_frame = None
+latest_lores = None
 running = True
 frame_lock = threading.Lock()
 
+track_lock = threading.Lock()
+latest_confirmed_tracks = []
+
 snap_lock = threading.Lock()
-snapshots = deque()  # (timestamp, list_of_tracks)
+snapshots = deque()  # (timestamp, list_of_confirmed_tracks)
 
 def pixel_x_to_angle_deg_linear(x, img_w, hfov_deg):
-    """Linear approximation (what you were using)."""
     x_norm = (x - (img_w / 2.0)) / (img_w / 2.0)
     return x_norm * (hfov_deg / 2.0)
 
 def pixel_x_to_angle_deg_atan(x, img_w, hfov_deg):
-    """More correct pinhole camera mapping using fx from HFOV."""
-    # fx = (W/2) / tan(HFOV/2)
     fx = (img_w / 2.0) / math.tan(math.radians(hfov_deg / 2.0))
     return math.degrees(math.atan2((x - (img_w / 2.0)), fx))
 
 def pixel_x_to_angle_deg(x, img_w, hfov_deg):
     return pixel_x_to_angle_deg_atan(x, img_w, hfov_deg) if USE_ATAN_MAPPING else pixel_x_to_angle_deg_linear(x, img_w, hfov_deg)
 
-# ----------------------------
-# Color mapping (stable per label)
-# ----------------------------
+def angle_deg_to_pixel_x(angle_deg, img_w, hfov_deg):
+    if USE_ATAN_MAPPING:
+        fx = (img_w / 2.0) / math.tan(math.radians(hfov_deg / 2.0))
+        return (img_w / 2.0) + fx * math.tan(math.radians(angle_deg))
+    else:
+        return (img_w / 2.0) * (1.0 + (angle_deg / (hfov_deg / 2.0)))
+
+# Color mapping per label
 label_color = {}
 _color_list = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['blue'])
 _color_index = 0
@@ -69,22 +94,34 @@ model = YOLO(MODEL_PATH)
 print("Model loaded.")
 
 def yolo_worker():
-    global latest_frame, running
-    img_w = CAMERA_SIZE[0]
+    global latest_lores, running, latest_confirmed_tracks
+    main_w, main_h = MAIN_SIZE
+    lo_w, lo_h = LORES_SIZE
+    sx = main_w / lo_w
+    sy = main_h / lo_h
+    img_area_main = main_w * main_h
 
     tracks = {}
     next_id = 1
     last_print = 0.0
 
     while running:
-        if latest_frame is None:
+        if latest_lores is None:
             time.sleep(0.01)
             continue
 
         with frame_lock:
-            frame = latest_frame.copy()
+            frame_lo = latest_lores.copy()
 
-        results = model(frame, imgsz=YOLO_SIZE, verbose=False)
+        # YOLO on lores frame
+        results = model.predict(
+            frame_lo,
+            imgsz=YOLO_IMGSZ,
+            conf=PREDICT_CONF,
+            iou=PREDICT_IOU,
+            agnostic_nms=AGNOSTIC_NMS,
+            verbose=False
+        )
         boxes = results[0].boxes
 
         detections = []
@@ -99,10 +136,30 @@ def yolo_worker():
                 cls_id = int(box.cls[0])
                 label = model.names[cls_id]
 
+                # lores coords
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
 
-                a_left  = pixel_x_to_angle_deg(x1, img_w, HFOV_DEG)
-                a_right = pixel_x_to_angle_deg(x2, img_w, HFOV_DEG)
+                # scale to MAIN coords for angle math / size filters
+                x1m = x1 * sx
+                x2m = x2 * sx
+                y1m = y1 * sy
+                y2m = y2 * sy
+
+                box_w = max(0.0, x2m - x1m)
+                box_h = max(0.0, y2m - y1m)
+                box_area = box_w * box_h
+
+                w_frac = box_w / main_w
+                h_frac = box_h / main_h
+                area_frac = box_area / img_area_main
+
+                if (w_frac > MAX_BOX_W_FRAC) or (h_frac > MAX_BOX_H_FRAC) or (area_frac > MAX_BOX_AREA_FRAC):
+                    if DEBUG_PRINT_HUGE_REJECTS:
+                        print(f"REJECT HUGE: {label} conf={conf:.2f} w={w_frac:.2f} h={h_frac:.2f} area={area_frac:.2f}")
+                    continue
+
+                a_left  = pixel_x_to_angle_deg(x1m, main_w, HFOV_DEG)
+                a_right = pixel_x_to_angle_deg(x2m, main_w, HFOV_DEG)
 
                 a_min = min(a_left, a_right)
                 a_max = max(a_left, a_right)
@@ -116,7 +173,7 @@ def yolo_worker():
                     "a_ctr": a_ctr
                 })
 
-        # ---- match detections to existing tracks (nearest center angle, same label) ----
+        # ---- match to tracks ----
         matched_track_ids = set()
 
         for det in detections:
@@ -144,7 +201,9 @@ def yolo_worker():
                     "a_max": det["a_max"],
                     "a_ctr": det["a_ctr"],
                     "conf": det["conf"],
-                    "last_seen": now
+                    "last_seen": now,
+                    "hits": 1,
+                    "confirmed": False,
                 }
                 matched_track_ids.add(tid)
             else:
@@ -154,27 +213,42 @@ def yolo_worker():
                 tr["a_ctr"] = det["a_ctr"]
                 tr["conf"] = det["conf"]
                 tr["last_seen"] = now
+                tr["hits"] += 1
+                if tr["hits"] >= MIN_HIT_STREAK:
+                    tr["confirmed"] = True
                 matched_track_ids.add(best_tid)
 
-        # ---- prune old tracks ----
+        # penalize unmatched
+        for tid, tr in tracks.items():
+            if tid not in matched_track_ids:
+                tr["hits"] = max(0, tr["hits"] - 1)
+                if tr["hits"] == 0:
+                    tr["confirmed"] = False
+
+        # prune old
         dead = [tid for tid, tr in tracks.items() if (now - tr["last_seen"]) > TRACK_TTL_SEC]
         for tid in dead:
             del tracks[tid]
 
-        # ---- snapshot for plotting ----
-        track_list = list(tracks.values())
+        confirmed = [t for t in tracks.values() if t["confirmed"]]
+
+        with track_lock:
+            latest_confirmed_tracks = [
+                {"id": t["id"], "label": t["label"], "conf": t["conf"], "a_min": t["a_min"], "a_max": t["a_max"]}
+                for t in confirmed
+            ]
+
         with snap_lock:
-            snapshots.append((now, track_list))
+            snapshots.append((now, confirmed))
             while snapshots and (now - snapshots[0][0]) > PLOT_WINDOW_SEC:
                 snapshots.popleft()
 
-        # ---- compact terminal snapshot ----
         if now - last_print >= (1.0 / PRINT_HZ):
             last_print = now
-            if track_list:
+            if confirmed:
                 s = " | ".join(
                     [f"{t['label']}#{t['id']} [{t['a_min']:.1f}..{t['a_max']:.1f}]° (c={t['conf']:.2f})"
-                     for t in sorted(track_list, key=lambda x: x["id"])]
+                     for t in sorted(confirmed, key=lambda x: x["id"])]
                 )
                 print(s)
 
@@ -190,7 +264,7 @@ def plot_worker():
             snap_copy = list(snapshots)
 
         ax.cla()
-        ax.set_title("Tracked Angular Spans — colored by label (legend = current view + conf range)")
+        ax.set_title("Tracked Angular Spans — colored by label")
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("Angle (deg)")
         ax.set_ylim(-HFOV_DEG/2.0 - 5, HFOV_DEG/2.0 + 5)
@@ -198,7 +272,6 @@ def plot_worker():
 
         xs_latest = None
 
-        # draw bars for full window
         for ts, track_list in snap_copy:
             x = ts - t0
             xs_latest = x
@@ -207,30 +280,24 @@ def plot_worker():
                 c = get_color_for_label(tr["label"])
                 ax.plot([x, x], [tr["a_min"], tr["a_max"]], linewidth=lw, color=c, alpha=0.9)
 
-        # latest snapshot: labels + legend data
         active_handles = []
         if snap_copy:
             ts_last, tracks_last = snap_copy[-1]
             x_last = ts_last - t0
 
-            # group confidences by label for legend "interval"
             conf_by_label = {}
             for tr in tracks_last:
                 conf_by_label.setdefault(tr["label"], []).append(tr["conf"])
 
-            # text labels for latest snapshot only
             if SHOW_TEXT_LABELS:
                 for tr in tracks_last:
                     c = get_color_for_label(tr["label"])
                     y_mid = 0.5 * (tr["a_min"] + tr["a_max"])
                     ax.text(x_last + 0.05, y_mid, f"{tr['label']}#{tr['id']}", color=c, fontsize=8, va="center")
 
-            # build legend ONLY from currently visible labels, with confidence range
             for lab, confs in sorted(conf_by_label.items()):
                 c = get_color_for_label(lab)
-                cmin = min(confs)
-                cmax = max(confs)
-                legend_label = f"{lab} (conf {cmin:.2f}-{cmax:.2f})"
+                legend_label = f"{lab} (conf {min(confs):.2f}-{max(confs):.2f})"
                 active_handles.append(Line2D([0], [0], color=c, lw=3, label=legend_label))
 
         if active_handles:
@@ -247,7 +314,12 @@ def plot_worker():
 
 # -------- Main --------
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": CAMERA_SIZE})
+
+# Use main+lores streams (huge performance win)
+config = picam2.create_preview_configuration(
+    main={"size": MAIN_SIZE, "format": "RGB888"},
+    lores={"size": LORES_SIZE, "format": "RGB888"}
+)
 picam2.configure(config)
 picam2.start()
 
@@ -257,13 +329,51 @@ yolo_thread.start()
 plot_thread = threading.Thread(target=plot_worker, daemon=True)
 plot_thread.start()
 
+frame_count = 0
+
 try:
     while True:
-        frame = picam2.capture_array()
-        frame = frame[:, :, :3]
-        frame = frame[:, :, ::-1]  # if colors look wrong, comment out
+        # Grab lores only (fast) for YOLO + preview
+        lo = picam2.capture_array("lores")
+
         with frame_lock:
-            latest_frame = frame
+            latest_lores = lo
+
+        if ENABLE_PREVIEW:
+            frame_count += 1
+            if frame_count % PREVIEW_EVERY_N_FRAMES == 0:
+                disp = lo.copy()
+
+                if DRAW_TRACK_SPANS_ON_PREVIEW:
+                    with track_lock:
+                        tr_copy = list(latest_confirmed_tracks)
+
+                    lo_w, lo_h = LORES_SIZE
+                    main_w, _ = MAIN_SIZE
+                    sx_back = lo_w / main_w  # convert MAIN-pixel x to LORES pixel x
+
+                    for tr in tr_copy:
+                        # convert angles -> MAIN pixel x -> LORES pixel x
+                        px_left_main  = angle_deg_to_pixel_x(tr["a_min"], main_w, HFOV_DEG)
+                        px_right_main = angle_deg_to_pixel_x(tr["a_max"], main_w, HFOV_DEG)
+                        px_left  = int(round(px_left_main * sx_back))
+                        px_right = int(round(px_right_main * sx_back))
+
+                        px_left = max(0, min(lo_w - 1, px_left))
+                        px_right = max(0, min(lo_w - 1, px_right))
+
+                        cv2.line(disp, (px_left, 0), (px_left, lo_h - 1), (0, 255, 255), 2)
+                        cv2.line(disp, (px_right, 0), (px_right, lo_h - 1), (0, 255, 255), 2)
+
+                        txt = f"{tr['label']}#{tr['id']} {tr['conf']:.2f}"
+                        cv2.putText(disp, txt, (min(px_left, px_right) + 5, 20),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+
+                # Picamera2 RGB888 -> OpenCV expects BGR
+                disp_bgr = cv2.cvtColor(disp, cv2.COLOR_RGB2BGR)
+                cv2.imshow("Preview (lores)", disp_bgr)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
 
 except KeyboardInterrupt:
     print("Stopping...")
@@ -273,3 +383,5 @@ finally:
     yolo_thread.join(timeout=1.0)
     picam2.stop()
     time.sleep(0.2)
+    if ENABLE_PREVIEW:
+        cv2.destroyAllWindows()

@@ -11,7 +11,7 @@ from matplotlib.lines import Line2D
 # -------- SETTINGS --------
 CAMERA_SIZE = (1920, 1080)
 
-YOLO_SIZE = 256
+YOLO_SIZE = 320
 CONF_THRES = 0.45
 MODEL_PATH = "yolov8n.pt"
 
@@ -71,6 +71,7 @@ model = YOLO(MODEL_PATH)
 print("Model loaded.")
 
 def yolo_worker():
+
     global latest_frame, running
     img_w = CAMERA_SIZE[0]
     img_h = CAMERA_SIZE[1]
