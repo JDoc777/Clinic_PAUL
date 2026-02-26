@@ -84,11 +84,15 @@ def unit(v):
     n = float(np.linalg.norm(v))
     return v / (n + 1e-9)
 
+# 5° soft buffer — IK rejects any solution within this margin of a hard stop
+LIMIT_BUFFER = math.radians(5)
+
 def within_limits(yaw, shoulder, elbow, wrist):
-    return (JOINT_LIMITS["yaw"][0]      <= yaw      <= JOINT_LIMITS["yaw"][1]      and
-            JOINT_LIMITS["shoulder"][0] <= shoulder <= JOINT_LIMITS["shoulder"][1] and
-            JOINT_LIMITS["elbow"][0]    <= elbow    <= JOINT_LIMITS["elbow"][1]    and
-            JOINT_LIMITS["wrist"][0]    <= wrist    <= JOINT_LIMITS["wrist"][1])
+    buf = LIMIT_BUFFER
+    return (JOINT_LIMITS["yaw"][0]      + buf <= yaw      <= JOINT_LIMITS["yaw"][1]      - buf and
+            JOINT_LIMITS["shoulder"][0] + buf <= shoulder <= JOINT_LIMITS["shoulder"][1] - buf and
+            JOINT_LIMITS["elbow"][0]    + buf <= elbow    <= JOINT_LIMITS["elbow"][1]    - buf and
+            JOINT_LIMITS["wrist"][0]    + buf <= wrist    <= JOINT_LIMITS["wrist"][1]    - buf)
 
 JOINT_HOMES = {
     "yaw":      0.0,
@@ -491,30 +495,47 @@ class IKWindow(QWidget):
         return best_via
 
     def _find_reposition(self, tx_w, ty_w, tz_w, phi, prefer_up):
-        dx=self.chassis_pos[0]-tx_w; dy=self.chassis_pos[1]-ty_w
-        retreat=math.atan2(dy,dx)
+        """
+        Search for a chassis XY position from which the arm can reach the target.
+        Strategy: compute the ideal standoff distance from arm geometry, then sweep
+        a full 360° ring at that distance plus a range above/below it.  This finds
+        valid positions for targets at any height or lateral distance.
+        """
         best_sol=None; best_cp=None; best_d=float("inf")
-        for ret in np.linspace(150, 600, 20):
-            for swp in np.linspace(-180, 180, 24, endpoint=False):
-                ang=retreat+math.radians(swp)
-                cp=np.array([tx_w+ret*math.cos(ang), ty_w+ret*math.sin(ang)])
-                sol=self._best_ik(tx_w,ty_w,tz_w,phi,prefer_up,cp)
+
+        # Ideal 2-D reach: horizontal distance from mount to wrist base.
+        # At target height tz_w, the mount is at CHASSIS["Lz"] + BASE_HEIGHT.
+        # The arm has to cover the vertical gap with L1+L2, so the remaining
+        # horizontal reach varies.  Sample a band of standoff distances that
+        # covers everything from min to max arm extension.
+        z_rel = tz_w - (CHASSIS["Lz"] + BASE_HEIGHT)
+        # Clamp to reachable vertical range
+        z_rel = clamp(z_rel, -(L1+L2)*0.95, (L1+L2)*0.95)
+        # Horizontal reach at this height (cosine of the elevation)
+        horiz_max = math.sqrt(max(0, (L1+L2)**2 - z_rel**2))
+        # Sample from 60% to 110% of max horizontal reach, plus an absolute min/max
+        r_lo = max(100.0, horiz_max * 0.55)
+        r_hi = min(1200.0, horiz_max * 1.05 + 200.0)
+
+        for ret in np.linspace(r_lo, r_hi, 28):
+            for ang_deg in np.linspace(0, 360, 36, endpoint=False):
+                ang = math.radians(ang_deg)
+                cp  = np.array([tx_w + ret*math.cos(ang),
+                                 ty_w + ret*math.sin(ang)])
+                sol = self._best_ik(tx_w, ty_w, tz_w, phi, prefer_up, cp)
                 if sol is not None:
                     if path_collides(self.current_angles, sol, cp, self.obstacles):
                         continue
-                    d=float(np.linalg.norm(cp-self.chassis_pos))
-                    if d<best_d: best_d=d; best_sol=sol; best_cp=cp.copy()
+                    d = float(np.linalg.norm(cp - self.chassis_pos))
+                    if d < best_d:
+                        best_d=d; best_sol=sol; best_cp=cp.copy()
+
         return best_cp, best_sol
 
     def move_to_target(self):
         try:
             x=float(self.x_in.text()); y=float(self.y_in.text()); z=float(self.z_in.text())
         except Exception: return
-
-        min_z = CHASSIS["Lz"] + 10.0
-        if z < min_z:
-            self._status(f"⚠️  Target Z={z:.0f} is below chassis top ({min_z:.0f} mm). Raise Z.")
-            return
 
         self.target_xyz=np.array([x,y,z],dtype=float)
         self.target_plot.setData(pos=np.array([[x,y,z]]))
