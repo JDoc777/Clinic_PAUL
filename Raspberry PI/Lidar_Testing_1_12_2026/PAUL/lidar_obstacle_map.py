@@ -52,7 +52,7 @@ class LidarObstacleMap:
             x_hit = x_robot + c * xr - s * yr
             y_hit = y_robot + s * xr + c * yr
 
-            print(f"angles={angles}")
+            #print(f"angles={angles}")
         
 
             

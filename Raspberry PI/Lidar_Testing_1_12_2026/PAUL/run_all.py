@@ -12,6 +12,7 @@ import Accel_local_map
 import DHT_processing
 import obstacle_grid_processing
 import reverse_kinematics
+import local_motion_testing
 import LCD_processing
 import lidar_processing
 import lidar_local_map
@@ -371,6 +372,7 @@ def main():
 
     # Wheels / autonomous subsystems at startup
     if run_wheels is True:
+        
         # Accelerometer + IMU maps
         Accel_local_map.create_and_run(shared_data)
 
@@ -378,7 +380,8 @@ def main():
         obstacle_grid_processing.create_and_run(shared_data)
 
         # Reverse kinematics node
-        reverse_kinematics.create_and_run(shared_data)
+        local_motion_testing.create_and_run(shared_data)
+
     else:
         print("\n[Startup] Skipping Wheels (run_wheels is False at startup)")
 
@@ -390,10 +393,19 @@ def main():
     lidar_map = lidar_local_map.LidarLocalMap(lidar_proc, poll=0.02)
 
     # 🔥 IMPORTANT: pass lidar_proc, NOT lidar_map
-    lidar_obs = lidar_obstacle_map.LidarObstacleMap(lidar_proc, grid, poll=0.5)
+    lidar_obs = lidar_obstacle_map.LidarObstacleMap(lidar_proc, grid, poll=0.02)
 
     grid.lidar_map = lidar_map
     grid.lidar_obs = lidar_obs
+
+    #local_motion_testing.create_and_run(shared_data, poll=0.05)
+
+
+
+
+    
+
+
 
 
 
@@ -412,7 +424,7 @@ def main():
     pg_live_plot_loop(grid, servo_controller=controller)
     # ------------------------------------------
 
-    # ---------- MAIN LOOP ----------
+    # ---------- MAIN GOON LOOP ----------
     try:
         wheel_system_started = False
 
@@ -429,7 +441,6 @@ def main():
 
                     Accel_local_map.create_and_run(shared_data)
                     obstacle_grid_processing.create_and_run(shared_data)
-                    reverse_kinematics.create_and_run(shared_data)
 
                     wheel_system_started = True
 

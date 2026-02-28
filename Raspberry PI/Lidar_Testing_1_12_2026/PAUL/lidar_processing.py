@@ -271,11 +271,11 @@ class LidarProcessor:
                 self._last_print_t = now
                 if rng.size > 0:
                     close = int(np.sum(rng < 0.50))
-                    print(
+                    '''print(
                         f"[LiDAR] sweeps={self.sweep_count} pts={rng.size} "
                         f"r=[{float(rng.min()):.2f},{float(rng.max()):.2f}] close<0.50m={close}",
                         flush=True
-                    )
+                    )'''
 
     def _loop(self):
         try:

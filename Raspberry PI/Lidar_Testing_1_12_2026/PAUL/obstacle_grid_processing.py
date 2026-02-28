@@ -3,6 +3,7 @@ import sys
 import time
 import threading
 import math
+from cv2 import threshold
 import numpy as np
 from encoder_processing import robot_position
 from Accel_local_map import AccelGyroProcessor, main
@@ -36,8 +37,8 @@ class ObstacleGrid:
         self.dx = 0.0
         self.dy = 0.0
         self.delta_s = 0.0
-        self.goal_x = 0.0
-        self.goal_y = 0.0
+        self.goal_x = 1.0
+        self.goal_y = 1.0
         self.cell_size = 0.05  # meters
         self.raw_x = 0.0
         self.raw_y = 0.0
@@ -52,6 +53,9 @@ class ObstacleGrid:
         self.wp_y = 0.0
         self.wp_theta = 0.0
         self.navigation_done = False
+        self.prev_goal = None
+        self._last_replan_time = 0.0
+        self.REPLAN_COOLDOWN = 2  # seconds (tune this)
 
         
         self.Q = np.diag([0.005, 0.005, math.radians(1.0)])  # Process noise covariance
@@ -69,7 +73,7 @@ class ObstacleGrid:
         self.setup_grid(width_m=10, height_m=10, cell_size=self.cell_size)
                 # --- Selective decay setup ---
         self.observed_mask = np.zeros_like(self.grid, dtype=bool)
-        self.DECAY = 0.98  # tune this (0.995 slow, 0.98 faster)
+        self.DECAY = 0.9995  # tune this (0.995 slow, 0.98 faster)
 
 
     def loop(self):
@@ -139,20 +143,34 @@ class ObstacleGrid:
             ]:
                 self.log_odometry(x_hit, y_hit, conf)
 
-                binary_map = (self.grid > 0).astype(int)
+                binary_map = (self.grid > 8).astype(int)
 
 
             # Debug print every second
             if time.time() - self._last_debug >= 1.0:
                 #print(f"SLAM Corrected Pose: x={fused_pose['x']:.4f}, y={fused_pose['y']:.4f}, theta={math.degrees(fused_pose['theta']):.4f} degrees, confidence={conf:.4f}, P=\n{self.P}", flush=True)
                 #print(f"Computed velocities: v={v:.4f} m/s, w={math.degrees(w):.4f} degrees/s", flush=True)
-                self._last_debug = time.time()
+                self._last_debug = time.time()  
+            if self.goal_x is not None:
 
-            if time.time() - self._last_goal_update > 5.0:
-                goal = (0 , 1)  # temp test goal in world meters
-                self.goal_x, self.goal_y = goal
-                self.test_astar_once(goal)
-                self._last_goal_update = time.time()
+                current_goal = (self.goal_x, self.goal_y)
+
+                if self.current_path_grid is None:
+                    print("[REPLAN] No path exists.")
+                    self.try_replan(current_goal)
+
+                elif current_goal != self.prev_goal:
+                    print("[REPLAN] Goal changed.")
+                    self.try_replan(current_goal)
+                    self.prev_goal = current_goal
+
+                elif self.path_is_blocked():
+                    print("[REPLAN] Path blocked.")
+                    self.try_replan(current_goal)
+
+                elif self.robot_far_from_path():
+                    print("[REPLAN] Robot deviated from path.")
+                    self.try_replan(current_goal)
 
             #print("Calling waypoint_step now...")
             if self.current_waypoints and not self.navigation_done:
@@ -184,10 +202,10 @@ class ObstacleGrid:
         # ---------------------------
         # Selective decay (once per loop)
         # ---------------------------
-        self.grid[~self.observed_mask] *= self.DECAY
+            self.grid[~self.observed_mask] *= self.DECAY
 
-        # Reset mask for next cycle
-        self.observed_mask.fill(False)
+            # Reset mask for next cycle
+            self.observed_mask.fill(False)
 
 
 
@@ -352,7 +370,72 @@ class ObstacleGrid:
         self.prev_time = now
 
         return v_fused, w_fused
+
+    def path_is_blocked(self, lookahead=30):
+        if self.current_path_grid is None:
+            return True
+
+        # start checking near where the robot currently is
+        xw = -fused_pose['x']
+        yw = fused_pose['y']
+        rx, ry = self.world_to_grid(xw, yw)
+
+        # find closest point index on the path
+        pts = self.current_path_grid
+        closest_i = min(range(len(pts)), key=lambda i: (pts[i][0]-rx)**2 + (pts[i][1]-ry)**2)
+
+        end_i = min(len(pts), closest_i + lookahead)
+
+        for (x, y) in pts[closest_i:end_i]:
+            if self.grid[y, x] > 1000:
+                return True
+
+        return False
     
+    def set_goal(self, x_world, y_world):
+        print(f"[NAV] New goal set: ({x_world}, {y_world})")
+
+        self.goal_x = float(x_world)
+        self.goal_y = float(y_world)
+
+        # Force replan once
+        self.prev_goal = None
+        
+
+
+    def robot_far_from_path(self, threshold=0.8):
+        if self.current_path_smooth is None or len(self.current_path_smooth) == 0:
+            return True
+    
+
+        rx = fused_pose['x']
+        ry = fused_pose['y']
+
+        min_dist = min(
+            math.hypot(rx - px, ry - py)
+            for (px, py) in self.current_path_smooth
+        )
+
+        return min_dist > threshold
+
+    def plan_to_goal(self, goal_world):
+        waypoints = self.test_astar_once(goal_world)
+
+        if waypoints:
+            self.current_waypoints = waypoints
+            self.current_wp_index = 0
+            self.navigation_done = False
+
+    def try_replan(self, goal):
+        now = time.time()
+
+        if now - self._last_replan_time < self.REPLAN_COOLDOWN:
+            return  # too soon, skip
+
+        print("[REPLAN] Running A*")
+        self._last_replan_time = now
+        self.plan_to_goal(goal)
+        
     def test_astar_once(self, goal_world):
         """
         Minimal A* test.
@@ -363,9 +446,9 @@ class ObstacleGrid:
         No smoothing, no headings, no control yet.
         """
         # ---- 1. Make a binary occupancy map ----
-        binary = (self.grid > 0).astype(int)
+        # ---- 1. Build trinary map ----
+        binary = (self.grid > 8).astype(int)
 
-        # ---- 2. Inflate for robot radius ----
         robot_radius = 0.01  # meters
         inflated = inflate_obstacles(binary, robot_radius, self.cell_size)
 
@@ -445,6 +528,8 @@ class ObstacleGrid:
         self.current_path_world = path_world
         self.current_path_smooth = path_smooth
 
+   
+
         return waypoints
 
        
@@ -471,6 +556,7 @@ def main(poll_interval=0.125):  # 100 Hz default
     shared_data, running_event, ser = testingUART.start_reader(start_writer=False, do_handshake=False)
     #print("ObstacleGrid: started reader (reader-only). Press Ctrl-C to exit.")
     grid = ObstacleGrid(shared_data, poll=poll_interval)
+
     try:
         while True:
             time.sleep(1)

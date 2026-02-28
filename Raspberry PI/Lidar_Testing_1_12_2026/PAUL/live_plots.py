@@ -515,7 +515,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             
 
         # Binary map visualization
-        binary_map = (grid.grid > 0).astype(int)  # Convert grid to binary map
+        binary_map = (grid.grid > 8).astype(int)  # Convert grid to binary map
         binary_img = (binary_map * 255).astype(np.uint8)  # Scale binary values to 0-255
         img_binary.setImage(np.flipud(binary_img.T), levels=(0, 255))
         img_binary.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))

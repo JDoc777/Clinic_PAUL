@@ -1,6 +1,8 @@
 import math
 import threading
 import time
+
+from networkx import omega
 import obstacle_grid_processing
 from obstacle_grid_processing import ObstacleGrid
 import Payload
@@ -10,13 +12,13 @@ fake_goal_x = 1  # Goal position (x)
 fake_goal_y = 3.5  # Goal position (y)
 fake_fused_pose = {'x': 0.0, 'y': 0.0, 'theta': 0.0}  # Robot's current position and heading
 
-class ReverseKinematics:
+class local_motion_testing:
     def __init__(self, shared_data, poll=0.05):
         self.shared_data = shared_data
         self.poll = poll
         
         # Register RK in shared_data BEFORE threads start
-        setattr(self.shared_data, "reverse_kinematics", self)
+        setattr(self.shared_data, "local_motion_testing", self)
 
         self._running = threading.Event()
         self._running.set()
@@ -62,6 +64,11 @@ class ReverseKinematics:
         self.prev_error_angle = 0.0
         self.dt = 0.0
 
+        self.motion_mode = "ACKERMAN"
+        self.R_min = 1.0
+        self.alpha_max = math.radians(25)
+        self.Ky_crab = 1.0
+
 
         self._last_time = time.time()
 
@@ -102,17 +109,18 @@ class ReverseKinematics:
                 time.sleep(target_dt)
                 Payload.set_motors(self.shared_data, 0, 0, 0, 0)
             else:
-                self.calculate_distance_and_heading_error(self.obstacle_grid.wp_x, self.obstacle_grid.wp_y, obstacle_grid_processing.fused_pose)
-                #self.calculate_velocities(self.distance, self.delta_angle)
-                self.compute_linear_velocity(self.distance)
-                self.compute_angular_velocity(self.delta_angle)
-                self.calculate_wheel_speeds(self.v, self.omega, self.theta_target)
-                self.FL_PWM = self.convert_linear_to_motor_speed(self.FL)
+                self.update_state()
+                self.update_errors()
+                self.update_motion_mode()
+                Vx, Vy, omega = self.compute_control()
+                self.apply_control(Vx, Vy, omega)
+                
+                """self.FL_PWM = self.convert_linear_to_motor_speed(self.FL)
                 self.FR_PWM = self.convert_linear_to_motor_speed(self.FR)
                 self.BL_PWM = self.convert_linear_to_motor_speed(self.BL)
-                self.BR_PWM = self.convert_linear_to_motor_speed(self.BR)
+                self.BR_PWM = self.convert_linear_to_motor_speed(self.BR)"""
 
-                Payload.set_motors(self.shared_data, self.FL_PWM, self.FR_PWM, self.BL_PWM, self.BR_PWM)
+                #Payload.set_motors(self.shared_data, self.FL, self.FR, self.BL, self.BR)
 
 
             # Debugging: Print wheel speeds to verify they are updated
@@ -121,62 +129,108 @@ class ReverseKinematics:
             # Sleep to maintain the loop frequency
             time.sleep(max(0, target_dt - (time.time() - start_time)))
 
-    def calculate_distance_and_heading_error(self, goal_x, goal_y, temp1_position):
-        x = -temp1_position['x']
-        y = temp1_position['y']
-        theta_current = temp1_position['theta']
-        
-        # Calculate distance
-        self.distance = math.sqrt((goal_x - x)**2 + (goal_y - y)**2)
-        
-        # Calculate target angle
-        self.theta_target = math.atan2(goal_y - y, goal_x - x)
-        
-        # Calculate heading error
-        self.delta_angle = (self.theta_target - theta_current + math.pi) % (2 * math.pi) - math.pi
-
-        #print ("Distance to goal:", self.distance, "Heading error (radians):", self.delta_angle)
-        
-        return self.distance, self.delta_angle, self.theta_target
+    def update_state(self):
     
-    def compute_linear_velocity(self, distance):
-        self.V_MAX = 0.25      # max translational velocity (m/s)
-        self.V_MIN = 0.03      # minimum useful velocity (m/s)
-        self.SLOW_RADIUS = 0.1 # start slowing down when within 1 meter
-        #print("Distance !!! to goal inside compute_linear_velocity:", distance)
+        self.pose = obstacle_grid_processing.fused_pose
 
-        if distance < self.SLOW_RADIUS:
-            # far away → go at max spee
-            self.v = (distance / self.SLOW_RADIUS) * self.V_MAX
-        else: 
-            self.v = self.V_MAX
+        self.x = -self.pose['x']
+        self.y =  self.pose['y']
+        self.theta = self.pose['theta']
 
+        self.wp_x = self.obstacle_grid.wp_x
+        self.wp_y = self.obstacle_grid.wp_y
+        
+    def update_errors(self):
 
+        dx = self.wp_x - self.x
+        dy = self.wp_y - self.y
 
-        self.v = max(self.V_MIN, self.v)
+        self.x_r =  math.cos(self.theta)*dx + math.sin(self.theta)*dy
+        self.y_r = -math.sin(self.theta)*dx + math.cos(self.theta)*dy
 
-        return self.v
+        self.heading_error = (math.atan2(dy, dx) - self.theta + math.pi) % (2*math.pi) - math.pi
+
+        self.Ld = math.sqrt(self.x_r*self.x_r + self.y_r*self.y_r)
     
-    def compute_angular_velocity(self, delta_angle):
-        W_MAX = 1.2
-        k_angle = 1.2  # less aggressive
+    def update_motion_mode(self):
 
-        # Soft turn braking
-        if abs(delta_angle) < math.radians(10):
-            self.omega = k_angle * delta_angle * 0.3
+        if self.Ld < 0.05:
+            return
+
+        if abs(self.y_r) < 1e-5:
+            R = float('inf')
         else:
-            self.omega = k_angle * delta_angle
+            R = (self.Ld*self.Ld) / (2.0*self.y_r)
 
-        # Bound
-        self.omega = max(-W_MAX, min(W_MAX, self.omega))
+        if abs(R) < self.R_min:
+            self.motion_mode = "TURN"
 
-        # Kill tiny drift
-        if abs(self.omega) < 0.05:
-            self.omega = 0
+        elif abs(self.heading_error) < self.alpha_max:
+            self.motion_mode = "CRAB"
 
-        return self.omega
+        else:
+            self.motion_mode = "ACKERMAN"
 
-    """def calculate_velocities(self, distance, delta_angle):
+    def compute_control(self):
+
+        if self.motion_mode == "TURN":
+
+            Vx = 0.0
+            Vy = 0.0
+            omega = self.compute_angular_velocity(self.heading_error)
+
+        elif self.motion_mode == "ACKERMAN":
+
+            v = self.compute_linear_velocity(self.Ld)
+
+            if self.Ld > 1e-5:
+                kappa = (2.0*self.y_r)/(self.Ld*self.Ld)
+            else:
+                kappa = 0.0
+
+            omega = v * kappa
+
+            Vx = v
+            Vy = 0.0
+
+        elif self.motion_mode == "CRAB":
+
+            kx = 1.0   # forward gain (tune this)
+            Vx = kx * self.x_r
+
+            Vy = self.Ky_crab * self.y_r
+
+            omega = 0.0
+
+        return Vx, Vy, omega
+
+    def calculate_wheel_speeds(self, Vx, Vy, omega):
+
+        L = 0.1
+
+        self.FL = (Vx - Vy - L*omega) * 50
+        self.FR = (Vx + Vy + L*omega) * 50
+        self.BL = (Vx + Vy - L*omega) * 50
+        self.BR = (Vx - Vy + L*omega) * 50
+
+        return self.FL, self.FR, self.BL, self.BR
+    
+    def apply_control(self, Vx, Vy, omega):
+
+        self.calculate_wheel_speeds(Vx, Vy, omega)
+        
+
+        Payload.set_motors(
+            self.shared_data,
+            self.FL,
+            self.FR,
+            self.BL,
+            self.BR
+        )
+    
+    
+
+    def calculate_velocities(self, distance, delta_angle):
         
         # add logic to create kd and kangle
         self.k_d = 1
@@ -206,7 +260,7 @@ class ReverseKinematics:
         else:
             self.v = V_MAX
 
-        return self.v"""
+        return self.v
     
     def compute_angular_velocity(self, delta_angle):
         # ---- clean P-only heading controller ----
@@ -229,7 +283,7 @@ class ReverseKinematics:
         #print("Computed Angular Velocity:", self.omega)
         return self.omega
     
-    def calculate_wheel_speeds(self, V_linear, V_angular, theta_target):
+    """def calculate_wheel_speeds(self, V_linear, V_angular, theta_target):
         L = 0.1
         
         # Convert linear velocity into x and y components
@@ -237,14 +291,14 @@ class ReverseKinematics:
         self.V_y = V_linear * math.sin(theta_target)
         
         # Mecanum wheel equations
-        self.FL = (self.V_x - self.V_y - L * V_angular) * 25
-        self.FR = (self.V_x + self.V_y + L * V_angular) * 25
-        self.BL = (self.V_x + self.V_y - L * V_angular) * 25
-        self.BR = (self.V_x - self.V_y + L * V_angular) * 25
+        self.FL = (self.V_x - self.V_y - L * V_angular) * 100
+        self.FR = (self.V_x + self.V_y + L * V_angular) * 100
+        self.BL = (self.V_x + self.V_y - L * V_angular) * 100
+        self.BR = (self.V_x - self.V_y + L * V_angular) * 100
 
         #print(f"Wheel Speeds!!!! - FL: {self.FL:.2f}, FR: {self.FR:.2f}, BL: {self.BL:.2f}, BR: {self.BR:.2f}, Vx: {self.V_x:.2f}, Vy: {self.V_y:.2f}")
         
-        return self.FL, self.FR, self.BL, self.BR, self.V_x, self.V_y
+        return self.FL, self.FR, self.BL, self.BR, self.V_x, self.V_y"""
 
     def convert_linear_to_motor_speed(self, v_linear):
         self.radius = 0.04
@@ -266,14 +320,14 @@ class ReverseKinematics:
         return int(self.adjusted_speed)
 
 def create_and_run(shared_data, poll=0.005):
-    return ReverseKinematics(shared_data, poll=poll)
+    return local_motion_testing(shared_data, poll=poll)
 
 def main():
     # Fake shared data (replace with actual shared data if available)
     shared_data = {}
 
     # Create an instance of ReverseKinematics
-    reverse_kinematics = create_and_run(shared_data)
+    local_motion_testing = create_and_run(shared_data)
 
 
 
@@ -283,7 +337,7 @@ def main():
             time.sleep(1)  # Keep the main thread alive
     except KeyboardInterrupt:
         #print("Stopping ReverseKinematics...")
-        reverse_kinematics.stop()
+        local_motion_testing.stop()
 
 
 def run():
