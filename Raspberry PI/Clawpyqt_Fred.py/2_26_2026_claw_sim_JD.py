@@ -335,6 +335,16 @@ class IKWindow(QWidget):
         self.status_label.setStyleSheet("font-weight:bold; padding:4px; font-size:12px;")
         root.addWidget(self.status_label)
 
+        # --- Chassis Position Display ---
+        self.pose_label = QLabel("Chassis Position: X=0.00 mm, Y=0.00 mm")
+        self.pose_label.setStyleSheet("font-size:12px; padding:4px;")
+        root.addWidget(self.pose_label)
+
+        # --- Target Position Display ---
+        self.target_pose_label = QLabel("Target Position: X=--.-- mm, Y=--.-- mm")
+        self.target_pose_label.setStyleSheet("font-size:12px; padding:4px; color:#074af2;")
+        root.addWidget(self.target_pose_label)
+
         # ── Joint readout panel ──────────────────────────────────
         joint_frame = QFrame()
         joint_frame.setStyleSheet("background:#1a1a2e; border-radius:4px; padding:2px;")
@@ -579,6 +589,11 @@ class IKWindow(QWidget):
         self.target_angles=target_ang; self.via_angles=via_ang
         if new_cp is not None:
             self.chassis_target_pos=new_cp; self.state="REPOSITIONING"
+            self.target_pose_label.setText(
+                f"Target Position: "
+                f"X={self.chassis_target_pos[0]:.2f} mm, "
+                f"Y={self.chassis_target_pos[1]:.2f} mm"
+            )
         else:
             self.state="ARM_TO_VIA" if via_ang is not None else "ARM_TO_TARGET"
 
@@ -642,6 +657,12 @@ class IKWindow(QWidget):
             self._jbars[name].setStyleSheet(
                 f"background:{bar_color}; border-radius:2px; "
                 f"min-width:{bar_pct}px; max-width:{bar_pct}px;")
+        # --- Update chassis position label ---
+        self.pose_label.setText(
+            f"Chassis Position: "
+            f"X={self.chassis_pos[0]:.2f} mm, "
+            f"Y={self.chassis_pos[1]:.2f} mm"
+        )
 
     def _smooth_to(self, target, speed=0.06):
         err=0.
