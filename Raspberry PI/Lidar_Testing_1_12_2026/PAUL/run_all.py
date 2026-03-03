@@ -16,6 +16,7 @@ import LCD_processing
 import lidar_processing
 import lidar_local_map
 import lidar_obstacle_map
+import IKsolver_processing
 
 from claw import start_claw_controller, start_claw_demo_thread
 from live_plots import pg_live_plot_loop, QApplication
@@ -345,13 +346,13 @@ def main():
 
     sonar_proc = sonar_processing.SonarProcessor(shared_data, poll=0.05)
 
+    ik_proc = IKsolver_processing.create_and_run(shared_data, poll=0.05)
+
+
     enc_local_map = encoder_local_map.create_and_run(
         poll=0.05,
         debug=True
     )
-
-    
-
 
     DHT_processing.create_and_run(shared_data, poll=0.1)
 
