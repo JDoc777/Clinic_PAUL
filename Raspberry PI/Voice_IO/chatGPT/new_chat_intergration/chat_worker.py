@@ -29,7 +29,7 @@ class chatLib:
                         "role": "system",
                         "content": (
                             "You are PAUL, a voice-controlled assistant. "
-                            "Respond in 1-2 short sentences, plain text only. "
+                            "Respond in 1-2 sentences max, plain text only. "
                             "No markdown."
                         )
                     },

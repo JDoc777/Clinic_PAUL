@@ -2,6 +2,11 @@ import discord
 import threading
 from datetime import datetime, timezone
 
+# from dotenv import load_dotenv
+# from discord import 
+
+
+# print("DISCORD_BOT_KEY:", bool(os.getenv("DISCORD_BOT_KEY")))
 
 class DiscordListener:
 
