@@ -3,6 +3,8 @@ import math
 import threading
 import numpy as np
 
+import Payload  # uses Payload.set_servos(shared, s0..s4)
+
 # ============================================================
 # ARM GEOMETRY
 # ============================================================
@@ -72,29 +74,68 @@ def _solve_ik_wrist_base(x, y, z, elbow_up=True):
     shoulder = phi - math.atan2(L2*math.sin(elbow), L1 + L2*math.cos(elbow))
     return yaw, shoulder, elbow
 
-def _compute_pwms(x, y, z, pitch, grip=1.0, elbow_up=True, chassis_pos=(0.0, 0.0)):
+def _angle_to_servo_degrees(joint_name: str, angle_rad: float) -> int:
+    """
+    Map a joint angle (radians) into a 0..180 'servo degree' command using JOINT_LIMITS.
+    Lower joint limit -> 0°, upper joint limit -> 180°.
+    """
+    lo, hi = JOINT_LIMITS[joint_name]
+    span = hi - lo
+    if abs(span) < 1e-12:
+        return 90
+    norm = _clamp((angle_rad - lo) / span, 0.0, 1.0)
+    return int(round(norm * 180.0))
+
+
+def _compute_servos(x, y, z, pitch, grip=1.0, elbow_up=True, chassis_pos=(0.0, 0.0)):
+    """
+    Compute *servo degree commands* (0..180) for yaw/shoulder/elbow/wrist/claw.
+
+    Note: This returns values intended for Payload.set_servos(), which clamps to [0,180]
+    and packs them as uint8 in the outgoing command payload.
+    """
     cx, cy     = chassis_pos
     arm_mount  = np.array([cx, cy, CHASSIS_LZ], dtype=float)
     tx, ty, tz = x - arm_mount[0], y - arm_mount[1], z - arm_mount[2]
+
     yaw0       = math.atan2(ty, tx)
+
+    # Back out wrist base position from tool center + desired pitch.
     rxy        = (L3 + CLAW_CENTER_OFFSET) * math.cos(pitch)
     rz         = (L3 + CLAW_CENTER_OFFSET) * math.sin(pitch)
-    sol        = _solve_ik_wrist_base(tx - rxy*math.cos(yaw0),
-                                       ty - rxy*math.sin(yaw0),
-                                       tz - rz, elbow_up)
+
+    sol = _solve_ik_wrist_base(
+        tx - rxy * math.cos(yaw0),
+        ty - rxy * math.sin(yaw0),
+        tz - rz,
+        elbow_up
+    )
     if sol is None:
         return None
+
     yaw, shoulder, elbow = sol
     wrist = pitch - (shoulder + elbow)
+
     if not _within_limits(yaw, shoulder, elbow, wrist):
         return None
-    pwms = []
-    for name, val in zip(["yaw","shoulder","elbow","wrist"], [yaw, shoulder, elbow, wrist]):
-        for cfg_name, mid, ppr in _PWM_CONFIGS:
-            if cfg_name == name:
-                pwms.append(int(round(mid + ppr * val)))
-    pwms.append(int(round(CLAW_CLOSE_PWM + grip * (CLAW_OPEN_PWM - CLAW_CLOSE_PWM))))
-    return pwms
+
+    # Joint angles -> 0..180 servo commands
+    s_yaw      = _angle_to_servo_degrees("yaw", yaw)
+    s_shoulder = _angle_to_servo_degrees("shoulder", shoulder)
+    s_elbow    = _angle_to_servo_degrees("elbow", elbow)
+    s_wrist    = _angle_to_servo_degrees("wrist", wrist)
+
+    # Grip convention:
+    #   grip = 0.0 -> closed, grip = 1.0 -> open  (matches your previous PWM formula)
+    grip = _clamp(grip, 0.0, 1.0)
+    s_claw = int(round(grip * 180.0))
+
+    return [s_yaw, s_shoulder, s_elbow, s_wrist, s_claw]
+
+
+# Backwards-compat wrapper (old name). Now returns servo degrees, not microseconds.
+def _compute_pwms(x, y, z, pitch, grip=1.0, elbow_up=True, chassis_pos=(0.0, 0.0)):
+    return _compute_servos(x, y, z, pitch, grip, elbow_up, chassis_pos)
 
 
 # ============================================================
@@ -107,7 +148,7 @@ class IKProcessor:
         self._target = {"x": 200.0, "y": 0.0, "z": CHASSIS_LZ + 150.0,
                         "pitch": 0.0, "grip": 1.0, "elbow_up": True,
                         "chassis_pos": (0.0, 0.0)}
-        self._pwms   = None
+        self._servos = None
         self._lock   = threading.Lock()
         self._running = threading.Event()
         self._running.set()
@@ -118,13 +159,14 @@ class IKProcessor:
         while self._running.is_set():
             with self._lock:
                 t = dict(self._target)
-            pwms = _compute_pwms(t["x"], t["y"], t["z"], t["pitch"],
+            servos = _compute_servos(t["x"], t["y"], t["z"], t["pitch"],
                                   t["grip"], t["elbow_up"], t["chassis_pos"])
-            if pwms is not None:
+            if servos is not None:
                 with self._lock:
-                    self._pwms = pwms
+                    self._servos = servos
                 if self.shared is not None:
-                    self.shared.set_data("ik_pwms", pwms)
+                    self.shared.set_data("ik_servos", servos)
+                    Payload.set_servos(self.shared, *servos)
             time.sleep(self.poll)
 
     def set_target(self, x, y, z, pitch, grip=1.0, elbow_up=True, chassis_pos=(0.0, 0.0)):
@@ -133,9 +175,9 @@ class IKProcessor:
                             "grip": grip, "elbow_up": elbow_up,
                             "chassis_pos": chassis_pos}
 
-    def get_pwms(self):
+    def get_servos(self):
         with self._lock:
-            return list(self._pwms) if self._pwms is not None else None
+            return list(self._servos) if self._servos is not None else None
 
     def stop(self, join_timeout=1.0):
         self._running.clear()

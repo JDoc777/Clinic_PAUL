@@ -73,32 +73,50 @@ VIA_ELBOW_N    = 7
 MG996R_PW_MIN   = 500    # µs  →  0°
 MG996R_PW_MAX   = 2500   # µs  →  180°
 MG996R_PERIOD   = 20000  # µs  (50 Hz)
-MG996R_DEG_MIN  = 0.0    # degrees mapped to PW_MIN
-MG996R_DEG_MAX  = 180.0  # degrees mapped to PW_MAX
+MG996R_DEG_MIN  = 0.0
+MG996R_DEG_MAX  = 180.0
 
 def angle_to_pwm(joint_name, angle_rad):
-    """
-    Convert a joint angle (radians, using the simulator's sign convention)
-    to an MG996R pulse width in microseconds.
-
-    Each joint's mechanical 0° servo position is the joint's lower limit,
-    and 180° corresponds to the upper limit.  The neutral 1500 µs maps to
-    the joint's HOME angle (mechanical centre).
-
-    Returns (pulse_width_us, duty_cycle_percent)
-    """
     lo, hi = JOINT_LIMITS[joint_name]
-    # Normalise angle into [0, 1] over the full joint range
     span = hi - lo
     if abs(span) < 1e-9:
         norm = 0.5
     else:
         norm = clamp((angle_rad - lo) / span, 0.0, 1.0)
-
-    # Map normalised value to pulse-width range
     pw_us = MG996R_PW_MIN + norm * (MG996R_PW_MAX - MG996R_PW_MIN)
     duty  = (pw_us / MG996R_PERIOD) * 100.0
     return pw_us, duty
+
+def angle_to_pwm255(joint_name, angle_rad):
+    """Map joint angle to -255 … +255, centred (0) at joint midpoint."""
+    lo, hi = JOINT_LIMITS[joint_name]
+    mid    = (lo + hi) / 2.0
+    half   = (hi - lo) / 2.0
+    if half < 1e-9:
+        return 0
+    return clamp(round((angle_rad - mid) / half * 255), -255, 255)
+
+def angle_to_servo_degrees(joint_name, angle_rad):
+    """
+    Convert a joint angle to a servo degree value in [0, 180] for PiOut.set_servos().
+    Joint lower limit -> 0 deg, upper limit -> 180 deg.
+    This is what the Arduino expects: set_servos clamps to [0, 180] (uint8).
+    """
+    lo, hi = JOINT_LIMITS[joint_name]
+    span   = hi - lo
+    if abs(span) < 1e-9:
+        return 90
+    norm = clamp((angle_rad - lo) / span, 0.0, 1.0)
+    return int(round(norm * 180))
+
+def current_angles_to_servos(angles, claw_deg=90):
+    """
+    Convert the sim current_angles [yaw, shoulder, elbow, wrist]
+    to a 5-tuple ready for PiOut.set_servos(shared_data, *servos).
+    claw_deg: 0=open, 180=closed, default 90 (neutral).
+    """
+    names = ["yaw", "shoulder", "elbow", "wrist"]
+    return tuple(angle_to_servo_degrees(n, a) for n, a in zip(names, angles)) + (claw_deg,)
 
 
 # ============================================================
@@ -422,7 +440,7 @@ class IKWindow(QWidget):
         # Per-servo columns
         servo_row = QHBoxLayout()
         servo_row.setSpacing(4)
-        self._pwm_labels = {}   # name → (pw_label, duty_label, pw_bar)
+        self._pwm_labels = {}   # name → (pw_label, duty_label, pwm255_label, pw_bar)
 
         for name in ["yaw", "shoulder", "elbow", "wrist"]:
             col_frame = QFrame()
@@ -449,13 +467,19 @@ class IKWindow(QWidget):
             duty_val.setStyleSheet("color:#55cc77; font-size:10px; font-family:monospace;")
             col.addWidget(duty_val)
 
+            # PWM -255 … +255
+            pwm255_val = QLabel("PWM:    0")
+            pwm255_val.setStyleSheet(
+                "color:#00ff88; font-size:10px; font-weight:bold; font-family:monospace;")
+            col.addWidget(pwm255_val)
+
             # Visual pulse-width bar (500–2500 µs maps to 0–100 px)
             pw_bar = QLabel()
             pw_bar.setFixedHeight(5)
             pw_bar.setStyleSheet("background:#00cc66; border-radius:2px; min-width:50px;")
             col.addWidget(pw_bar)
 
-            self._pwm_labels[name] = (pw_val, duty_val, pw_bar)
+            self._pwm_labels[name] = (pw_val, duty_val, pwm255_val, pw_bar)
             servo_row.addWidget(col_frame)
 
         pwm_outer.addLayout(servo_row)
@@ -727,34 +751,39 @@ class IKWindow(QWidget):
                 f"min-width:{bar_pct}px; max-width:{bar_pct}px;")
 
         # ── MG996R PWM readout ───────────────────────────────────
-        # Bar width represents position within 500–2500 µs range (max 120 px)
         BAR_MAX_PX = 120
         for name, val in zip(names, values):
             pw_us, duty = angle_to_pwm(name, val)
+            pwm255      = angle_to_pwm255(name, val)
 
-            # Colour coding: green near centre (1500 µs), amber approaching limits
             fraction = joint_usage_fraction(name, val)
             if fraction >= WARN_RED:
-                val_color  = "#ff4444"
-                bar_color  = "#cc2222"
+                val_color = "#ff4444"
+                bar_color = "#cc2222"
             elif fraction >= WARN_YELLOW:
-                val_color  = "#ffcc00"
-                bar_color  = "#cc9900"
+                val_color = "#ffcc00"
+                bar_color = "#cc9900"
             else:
-                val_color  = "#00ff88"
-                bar_color  = "#00cc66"
+                val_color = "#00ff88"
+                bar_color = "#00cc66"
 
-            # Normalise PW within 500–2500 range for bar width
-            norm = (pw_us - MG996R_PW_MIN) / (MG996R_PW_MAX - MG996R_PW_MIN)
+            norm   = (pw_us - MG996R_PW_MIN) / (MG996R_PW_MAX - MG996R_PW_MIN)
             bar_px = int(clamp(norm, 0.0, 1.0) * BAR_MAX_PX)
 
-            pw_lbl, duty_lbl, pw_bar = self._pwm_labels[name]
+            pw_lbl, duty_lbl, pwm255_lbl, pw_bar = self._pwm_labels[name]
+
             pw_lbl.setText(f"{pw_us:.0f} µs")
             pw_lbl.setStyleSheet(
                 f"color:{val_color}; font-size:14px; font-weight:bold; font-family:monospace;")
+
             duty_lbl.setText(f"{duty:.2f} %")
             duty_lbl.setStyleSheet(
                 f"color:{val_color}; font-size:10px; font-family:monospace;")
+
+            pwm255_lbl.setText(f"PWM: {pwm255:+d}")
+            pwm255_lbl.setStyleSheet(
+                f"color:{val_color}; font-size:10px; font-weight:bold; font-family:monospace;")
+
             pw_bar.setStyleSheet(
                 f"background:{bar_color}; border-radius:2px; "
                 f"min-width:{bar_px}px; max-width:{bar_px}px; min-height:5px;")
