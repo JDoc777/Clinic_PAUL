@@ -49,6 +49,8 @@ class ObstacleGrid:
         self.current_waypoints = []
         self.current_wp_index = 0
         self.current_path_grid = None
+        self.current_path_modes = None
+        self.current_turn_points = None
         self.wp_x = 0.0
         self.wp_y = 0.0
         self.wp_theta = 0.0
@@ -56,6 +58,7 @@ class ObstacleGrid:
         self.prev_goal = None
         self._last_replan_time = 0.0
         self.REPLAN_COOLDOWN = 2  # seconds (tune this)
+        
 
         
         self.Q = np.diag([0.005, 0.005, math.radians(1.0)])  # Process noise covariance
@@ -430,12 +433,16 @@ class ObstacleGrid:
         now = time.time()
 
         if now - self._last_replan_time < self.REPLAN_COOLDOWN:
-            return  # too soon, skip
+            return
 
         print("[REPLAN] Running A*")
+
+        self.snapshot_requested = True
+
         self._last_replan_time = now
         self.plan_to_goal(goal)
-        
+        self.snapshot_requested = True
+            
     def test_astar_once(self, goal_world):
         """
         Minimal A* test.
@@ -450,7 +457,8 @@ class ObstacleGrid:
         binary = (self.grid > 8).astype(int)
 
         robot_radius = 0.01  # meters
-        inflated = inflate_obstacles(binary, robot_radius, self.cell_size)
+        self.inflated_grid = inflate_obstacles(binary, robot_radius, self.cell_size)
+        inflated = self.inflated_grid
 
         # ---- 3. Convert robot pose to grid ----
         xw = -fused_pose['x']

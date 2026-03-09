@@ -83,54 +83,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_logodds.addItem(legend)
     legend.setPos(2.2, -0.5)  # Adjust position as needed
 
-    # Corrected Positions Plot (top-right)
-    plot_corrected = win.addPlot(title="Corrected Positions (Fused)")
-    plot_corrected.setAspectLocked(True)
-    plot_corrected.setXRange(0, grid.grid.shape[1])
-    plot_corrected.setYRange(0, grid.grid.shape[0])
-    plot_corrected.showGrid(x=True, y=True, alpha=0.3)
-    img_corrected = pg.ImageItem()
-    plot_corrected.addItem(img_corrected)
-
-    # Add robot position dot to corrected positions plot
-    robot_dot_corrected = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
-    plot_corrected.addItem(robot_dot_corrected)
-
-    # Add legend for corrected positions
-    corrected_legend_text = (
-        "<span style='font-size:12pt'>"
-        "<b>Legend:</b><br>"
-        "<span style='color:black;'>■</span> Free (log-odds &lt; 0)<br>"
-        "<span style='color:gray;'>■</span> Unknown (log-odds ≈ 0)<br>"
-        "<span style='color:white;'>■</span> Occupied (log-odds &gt; 0)"
-        "</span>"
-    )
-    corrected_legend = pg.TextItem(html=corrected_legend_text, anchor=(0, 0), border='w', fill=(200, 200, 200, 150))
-    plot_corrected.addItem(corrected_legend)
-    corrected_legend.setPos(2.2, -0.5)  # Adjust position as needed
-
-    # Add a new plot for robot movement toward the goal (top-right)
-    plot_robot_to_goal = win.addPlot(title="Robot Movement to Goal")
-    plot_robot_to_goal.setAspectLocked(True)
-    plot_robot_to_goal.setXRange(0, grid.grid.shape[1])
-    plot_robot_to_goal.setYRange(0, grid.grid.shape[0])
-    plot_robot_to_goal.showGrid(x=True, y=True, alpha=0.3)
-
-    # Add the robot's position as a green dot
-    robot_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 255, 0, 200))  # Green dot
-    plot_robot_to_goal.addItem(robot_position_dot)
-
-    # Add the goal position as a red dot
-    goal_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(255, 0, 0, 200))  # Red dot
-    plot_robot_to_goal.addItem(goal_position_dot)
-
-    # Add a trajectory line to show the robot's gradual movement
-    robot_trajectory_line = pg.PlotDataItem(pen=pg.mkPen('g', width=2))  # Green line
-    plot_robot_to_goal.addItem(robot_trajectory_line)
-
-    # Initialize trajectory data
-    robot_trajectory_x = []
-    robot_trajectory_y = []
 
     # Move to the next row for the remaining bottom plots
     win.nextRow()
@@ -259,6 +211,49 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_binary.addItem(astar_raw_path)
     plot_binary.addItem(astar_smooth_path)
 
+    # Local Motion Mode Plot
+    plot_local_motion = win.addPlot(title="Local Motion Modes")
+    plot_local_motion.setAspectLocked(True)
+    plot_local_motion.setXRange(0, grid.grid.shape[1])
+    plot_local_motion.setYRange(0, grid.grid.shape[0])
+    plot_local_motion.showGrid(x=True, y=True, alpha=0.3)
+
+    # background binary map image
+    img_local_motion = pg.ImageItem()
+    plot_local_motion.addItem(img_local_motion)
+
+    # segmented colored path items
+    local_motion_ackermann = pg.PlotDataItem(pen=pg.mkPen('g', width=3))
+    local_motion_crab = pg.PlotDataItem(pen=pg.mkPen((255, 165, 0), width=3))  # orange
+
+    plot_local_motion.addItem(local_motion_ackermann)
+    plot_local_motion.addItem(local_motion_crab)
+
+    # turn markers
+    local_motion_turns = pg.ScatterPlotItem(
+        size=10,
+        brush=pg.mkBrush(0, 0, 255, 220),
+        pen=pg.mkPen('k', width=1)
+    )
+    plot_local_motion.addItem(local_motion_turns)
+
+    # start / goal markers
+    local_motion_start = pg.ScatterPlotItem(
+        size=12,
+        brush=pg.mkBrush(0, 255, 0, 220),
+        pen=pg.mkPen('k', width=1)
+    )
+    local_motion_goal = pg.ScatterPlotItem(
+        size=12,
+        brush=pg.mkBrush(255, 0, 0, 220),
+        pen=pg.mkPen('k', width=1)
+    )
+
+    plot_local_motion.addItem(local_motion_start)
+    plot_local_motion.addItem(local_motion_goal)
+
+    
+
         # ---------------- LiDAR Scan Plot (Robot Frame) ----------------
     '''plot_lidar = win.addPlot(title="LiDAR Scan (Robot Frame)")
     plot_lidar.setAspectLocked(True)
@@ -301,15 +296,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     )
     plot_lidar.addItem(lidar_robot_dot)
 
-        # --- LiDAR Occupancy Grid Plot ---
-    plot_lidar_grid = win.addPlot(title="LiDAR Occupancy Grid")
-    plot_lidar_grid.setAspectLocked(True)
-    plot_lidar_grid.setXRange(0, grid.grid.shape[1])
-    plot_lidar_grid.setYRange(0, grid.grid.shape[0])
-    plot_lidar_grid.showGrid(x=True, y=True, alpha=0.3)
-
-    lidar_grid_img = pg.ImageItem()
-    plot_lidar_grid.addItem(lidar_grid_img)
 
 
 
@@ -331,18 +317,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         img_logodds.setImage(np.flipud(logodds_img.T), levels=(0, 255))
         img_logodds.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
 
-        # Corrected positions visualization
-        try:
-            # Ensure corrected_grid is properly normalized and visualized
-            corrected_disp = np.clip(grid.grid, -10, 10)  # Use the same grid data as log-odds for now
-            # Normalize to 0-255 for display: -10 -> 0, 0 -> 127, +10 -> 255
-            corrected_img = ((corrected_disp + 10) * (255.0 / 20)).astype(np.uint8)
-            img_corrected.setImage(np.flipud(corrected_img.T), levels=(0, 255))
-            img_corrected.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
-        except Exception:
-            # If corrected positions not available yet, skip plotting
-            pass
-
         # Robot position
         x_pos = fused_pose['x']
         y_pos = fused_pose['y']
@@ -350,8 +324,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
 
         robot_dot.setData([robot_ix], [robot_iy])
         robot_dot_logodds.setData([robot_ix], [robot_iy])
-        robot_dot_corrected.setData([robot_ix], [robot_iy])
-
         # Trajectory: only append if position changed
         if not _traj_x or (abs(x_pos - _traj_x[-1]) > 1e-4 or abs(y_pos - _traj_y[-1]) > 1e-4):
             _traj_x.append(x_pos)
@@ -520,6 +492,94 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         img_binary.setImage(np.flipud(binary_img.T), levels=(0, 255))
         img_binary.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
 
+        # =========================
+        # Local Motion background
+        # =========================
+
+        img_local_motion.setImage(np.flipud(binary_img.T), levels=(0,255))
+        img_local_motion.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
+
+        # =========================
+        # Local Motion Path Drawing
+        # =========================
+
+        path = grid.current_path_smooth
+        modes = getattr(grid, "current_path_modes", None)
+
+        if path is not None and modes is not None and len(path) == len(modes):
+
+            ack_x = []
+            ack_y = []
+
+            crab_x = []
+            crab_y = []
+
+            for i in range(len(path)-1):
+
+                x1, y1 = path[i]
+                x2, y2 = path[i+1]
+
+                if modes[i] == "ACKERMANN":
+
+                    ack_x += [x1, x2, None]
+                    ack_y += [y1, y2, None]
+
+                elif modes[i] == "CRAB":
+
+                    crab_x += [x1, x2, None]
+                    crab_y += [y1, y2, None]
+
+            local_motion_ackermann.setData(ack_x, ack_y)
+            local_motion_crab.setData(crab_x, crab_y)
+
+        else:
+
+            local_motion_ackermann.clear()
+            local_motion_crab.clear()
+
+        # =========================
+        # Local Motion TURN markers
+        # =========================
+
+        turn_points = getattr(grid, "current_turn_points", None)
+
+        if path is not None and turn_points is not None:
+
+            turn_x = []
+            turn_y = []
+
+            for idx in turn_points:
+
+                if idx < len(path):
+
+                    x, y = path[idx]
+
+                    turn_x.append(x)
+                    turn_y.append(y)
+
+            local_motion_turns.setData(turn_x, turn_y)
+
+        else:
+
+            local_motion_turns.clear()
+        
+        # =========================
+        # Local Motion START / GOAL
+        # =========================
+
+        if path is not None and len(path) > 0:
+
+            sx, sy = path[0]
+            gx, gy = path[-1]
+
+            local_motion_start.setData([sx], [sy])
+            local_motion_goal.setData([gx], [gy])
+
+        else:
+
+            local_motion_start.clear()
+            local_motion_goal.clear()
+
         # A* Pathfinding Visualization on Binary Map
         try:
             # Start and goal positions
@@ -546,33 +606,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             astar_raw_path.setData([], [])
             astar_smooth_path.setData([], [])
 
-        # Update the robot's position and goal on the new plot
-        try:
-            # Get the robot's current position
-            current_x = fused_pose['x']
-            current_y = fused_pose['y']
-
-            # Get the goal position
-            goal_x, goal_y = grid.goal_x, grid.goal_y
-
-            # Update the robot's position dot
-            robot_position_dot.setData([current_x], [current_y])
-
-            # Update the goal position dot
-            goal_position_dot.setData([goal_x], [goal_y])
-
-            # Append the robot's position to the trajectory if it has moved
-            if not robot_trajectory_x or (abs(current_x - robot_trajectory_x[-1]) > 1e-4 or abs(current_y - robot_trajectory_y[-1]) > 1e-4):
-                robot_trajectory_x.append(current_x)
-                robot_trajectory_y.append(current_y)
-
-            # Update the trajectory line
-            robot_trajectory_line.setData(robot_trajectory_x, robot_trajectory_y)
-        except AttributeError:
-            # If data is not available yet, clear the plot
-            robot_position_dot.setData([], [])
-            goal_position_dot.setData([], [])
-            robot_trajectory_line.setData([], [])
         
             # ---------------- LiDAR Scan (Robot Frame) ----------------
         '''try:
@@ -628,21 +661,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             lidar_traj_dot.setData([x], [y])
         except Exception:
             lidar_robot_dot.setData([], [])
-
-        try:
-            lidar_grid = grid.grid   # same grid for now
-
-            # Normalize log-odds to grayscale
-            disp = np.clip(lidar_grid, -5, 5)
-            lidar_img = ((disp + 5) * (255.0 / 10)).astype(np.uint8)
-
-            lidar_grid_img.setImage(np.flipud(lidar_img.T), levels=(0, 255))
-            lidar_grid_img.setRect(
-                QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0])
-            )
-
-        except Exception:
-            pass
 
         
     

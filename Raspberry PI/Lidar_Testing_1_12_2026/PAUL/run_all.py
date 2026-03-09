@@ -17,6 +17,8 @@ import LCD_processing
 import lidar_processing
 import lidar_local_map
 import lidar_obstacle_map
+import robot_logger
+import local_motion_processing
 
 from claw import start_claw_controller, start_claw_demo_thread
 from live_plots import pg_live_plot_loop, QApplication
@@ -400,6 +402,10 @@ def main():
 
     #local_motion_testing.create_and_run(shared_data, poll=0.05)
 
+    logger = robot_logger.create_and_run(grid, "robot_run.jsonl")
+
+    local_motion_processing.create_and_run(grid)
+
 
 
 
@@ -424,7 +430,7 @@ def main():
     pg_live_plot_loop(grid, servo_controller=controller)
     # ------------------------------------------
 
-    # ---------- MAIN GOON LOOP ----------
+    # ---------- MAIN LOOP ----------
     try:
         wheel_system_started = False
 

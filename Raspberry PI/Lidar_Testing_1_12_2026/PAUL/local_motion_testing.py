@@ -1,354 +1,377 @@
 import math
-import threading
-import time
+import random
+import numpy as np
+import matplotlib.pyplot as plt
 
-from networkx import omega
-import obstacle_grid_processing
-from obstacle_grid_processing import ObstacleGrid
-import Payload
-
-# Fake values for testing
-fake_goal_x = 1  # Goal position (x)
-fake_goal_y = 3.5  # Goal position (y)
-fake_fused_pose = {'x': 0.0, 'y': 0.0, 'theta': 0.0}  # Robot's current position and heading
-
-class local_motion_testing:
-    def __init__(self, shared_data, poll=0.05):
-        self.shared_data = shared_data
-        self.poll = poll
-        
-        # Register RK in shared_data BEFORE threads start
-        setattr(self.shared_data, "local_motion_testing", self)
-
-        self._running = threading.Event()
-        self._running.set()
-
-        self.distance = 0.0
-        self.delta_angle = 0.0
-        self.theta_target = 0.0
-        self.V_linear = 0.0
-        self.V_angular = 0.0
-        self.v = 0.0
-        self.omega = 0.0
-
-        self.FL = 0.0
-        self.FR = 0.0
-        self.BL = 0.0
-        self.BR = 0.0
-        self.V_x = 0.0
-        self.V_y = 0.0
-
-        self.max_speed = 0
-        self.dead_zone_limit = 0
-        self.motor_speed = 0
-        self.adjusted_speed = 0
-        self.radius = 0.0
-        self.wheel_base = 0.0
-
-        self.FL_PWM = 0
-        self.FR_PWM = 0
-        self.BL_PWM = 0
-        self.BR_PWM = 0 
-
-        self.FL = 0.0
-        self.FR = 0.0
-        self.BL = 0.0
-        self.BR = 0.0
-
-        self.path_grid = None
-
-        self.V_MAX = 0       
-        self.V_MIN = 0
-        self.SLOW_RADIUS = 0
-
-        self.prev_error_angle = 0.0
-        self.dt = 0.0
-
-        self.motion_mode = "ACKERMAN"
-        self.R_min = 1.0
-        self.alpha_max = math.radians(25)
-        self.Ky_crab = 1.0
+from pathfinding import astar, inflate_obstacles, add_headings
 
 
-        self._last_time = time.time()
+# =========================
+# SIM CONFIG
+# =========================
+GRID_W = 140
+GRID_H = 100
+CELL_SIZE_M = 0.10
+ROBOT_RADIUS_M = 0.50
 
-        # Create obstacle grid
-        self.obstacle_grid = ObstacleGrid(shared_data, poll)
+# Mode thresholds
+R_MIN_CELLS = 6.0
+ALPHA_MAX_DEG = 15.0
+TURN_HEADING_DEG = 50.0
 
-        # START THREAD LAST
-        self._thread = threading.Thread(target=self.loop, daemon=True)
-        self._thread.start()
+# For mecanum-style crab detection
+CRAB_ANGLE_DEG = 15.0   # if motion direction differs this much from local heading, prefer crab
 
-    def loop(self):
-        target_dt = 0.5  # 20 Hz loop frequency
-        self._last_time = time.time()
-
-        while self._running.is_set():
-            start_time = time.time()
-            now = time.time()
-            self.dt = now - self._last_time
-            self._last_time = now
-
-            if self.dt <= 0 or self.dt > 0.1:
-                continue  # Skip this iteration if dt is invalid
-
-            #print("HIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIi")
-
-            # Calculate distance, heading error, and velocities
-
-            if self.obstacle_grid.navigation_done:
-                print("Navigation is done. Stopping motors.")
-                Payload.set_motors(self.shared_data, 0, 0, 0, 0)
-                time.sleep(target_dt)
-                continue
-
-            self.path_grid = self.obstacle_grid.current_path_grid
-
-            if self.path_grid is None:
-                print("No path grid available yet.")
-                time.sleep(target_dt)
-                Payload.set_motors(self.shared_data, 0, 0, 0, 0)
-            else:
-                self.update_state()
-                self.update_errors()
-                self.update_motion_mode()
-                Vx, Vy, omega = self.compute_control()
-                self.apply_control(Vx, Vy, omega)
-                
-                """self.FL_PWM = self.convert_linear_to_motor_speed(self.FL)
-                self.FR_PWM = self.convert_linear_to_motor_speed(self.FR)
-                self.BL_PWM = self.convert_linear_to_motor_speed(self.BL)
-                self.BR_PWM = self.convert_linear_to_motor_speed(self.BR)"""
-
-                #Payload.set_motors(self.shared_data, self.FL, self.FR, self.BL, self.BR)
+# Path cleanup
+DENSIFY_STEP = 1
+SMOOTH_WINDOW = 5
 
 
-            # Debugging: Print wheel speeds to verify they are updated
+# =========================
+# MECANUM MATRIX
+# =========================
+def mecanum_wheels(vx, vy, omega, L=0.3, W=0.3, r=0.05):
+    M = np.array([
+        [1, -1, -(L + W)],
+        [1,  1,  (L + W)],
+        [1,  1, -(L + W)],
+        [1, -1,  (L + W)]
+    ])
+    v = np.array([vx, vy, omega])
+    w = (1 / r) * M @ v
+    return w
 
 
-            # Sleep to maintain the loop frequency
-            time.sleep(max(0, target_dt - (time.time() - start_time)))
+# =========================
+# VISUALIZATION HELPERS
+# =========================
+def draw_headings(path):
+    """
+    Draw robot orientation arrows along the path.
+    """
+    waypoints = add_headings(path)
 
-    def update_state(self):
-    
-        self.pose = obstacle_grid_processing.fused_pose
+    for i in range(0, len(waypoints), 5):
+        x, y, theta = waypoints[i]
+        dx = math.cos(theta)
+        dy = math.sin(theta)
 
-        self.x = -self.pose['x']
-        self.y =  self.pose['y']
-        self.theta = self.pose['theta']
-
-        self.wp_x = self.obstacle_grid.wp_x
-        self.wp_y = self.obstacle_grid.wp_y
-        
-    def update_errors(self):
-
-        dx = self.wp_x - self.x
-        dy = self.wp_y - self.y
-
-        self.x_r =  math.cos(self.theta)*dx + math.sin(self.theta)*dy
-        self.y_r = -math.sin(self.theta)*dx + math.cos(self.theta)*dy
-
-        self.heading_error = (math.atan2(dy, dx) - self.theta + math.pi) % (2*math.pi) - math.pi
-
-        self.Ld = math.sqrt(self.x_r*self.x_r + self.y_r*self.y_r)
-    
-    def update_motion_mode(self):
-
-        if self.Ld < 0.05:
-            return
-
-        if abs(self.y_r) < 1e-5:
-            R = float('inf')
-        else:
-            R = (self.Ld*self.Ld) / (2.0*self.y_r)
-
-        if abs(R) < self.R_min:
-            self.motion_mode = "TURN"
-
-        elif abs(self.heading_error) < self.alpha_max:
-            self.motion_mode = "CRAB"
-
-        else:
-            self.motion_mode = "ACKERMAN"
-
-    def compute_control(self):
-
-        if self.motion_mode == "TURN":
-
-            Vx = 0.0
-            Vy = 0.0
-            omega = self.compute_angular_velocity(self.heading_error)
-
-        elif self.motion_mode == "ACKERMAN":
-
-            v = self.compute_linear_velocity(self.Ld)
-
-            if self.Ld > 1e-5:
-                kappa = (2.0*self.y_r)/(self.Ld*self.Ld)
-            else:
-                kappa = 0.0
-
-            omega = v * kappa
-
-            Vx = v
-            Vy = 0.0
-
-        elif self.motion_mode == "CRAB":
-
-            kx = 1.0   # forward gain (tune this)
-            Vx = kx * self.x_r
-
-            Vy = self.Ky_crab * self.y_r
-
-            omega = 0.0
-
-        return Vx, Vy, omega
-
-    def calculate_wheel_speeds(self, Vx, Vy, omega):
-
-        L = 0.1
-
-        self.FL = (Vx - Vy - L*omega) * 50
-        self.FR = (Vx + Vy + L*omega) * 50
-        self.BL = (Vx + Vy - L*omega) * 50
-        self.BR = (Vx - Vy + L*omega) * 50
-
-        return self.FL, self.FR, self.BL, self.BR
-    
-    def apply_control(self, Vx, Vy, omega):
-
-        self.calculate_wheel_speeds(Vx, Vy, omega)
-        
-
-        Payload.set_motors(
-            self.shared_data,
-            self.FL,
-            self.FR,
-            self.BL,
-            self.BR
+        plt.arrow(
+            x, y,
+            dx, dy,
+            head_width=0.6,
+            head_length=0.8,
+            fc='black',
+            ec='black',
+            alpha=0.7,
+            length_includes_head=True,
+            zorder=6
         )
-    
-    
 
-    def calculate_velocities(self, distance, delta_angle):
-        
-        # add logic to create kd and kangle
-        self.k_d = 1
-        self.k_angle = 1
-        
-        self.V_linear = self.k_d * distance
-        self.V_angular = self.k_angle * delta_angle
-        
-        print("Calculated Velocities - Linear:", self.V_linear, "Angular:", self.V_angular)
-        return self.V_linear, self.V_angular
-    
-    def compute_linear_velocity(self, distance):
-        # SIMPLE and SAFE controller
-        V_MAX = 0.25
-        STOP_RADIUS = 0.10      # stop if within 10 cm
-        SLOW_RADIUS = 0.30      # start slowing within 30 cm
 
-        # stop if very close
-        if distance < STOP_RADIUS:
-            self.v = 0.0
-            return self.v
+def draw_icr(path):
+    """
+    Visualize Instantaneous Center of Rotation for curved regions.
+    """
+    waypoints = add_headings(path)
 
-        # smooth slowdown (linear)
-        if distance < SLOW_RADIUS:
-            scale = distance / SLOW_RADIUS
-            self.v = V_MAX * scale
-        else:
-            self.v = V_MAX
+    for i in range(1, len(waypoints) - 1, 8):
+        x, y, theta = waypoints[i]
+        p0 = path[i - 1]
+        p1 = path[i]
+        p2 = path[i + 1]
 
-        return self.v
-    
-    def compute_angular_velocity(self, delta_angle):
-        # ---- clean P-only heading controller ----
-        Kp = 0.8            # start here; you can tune between 0.5–1.0
-        W_MAX = 0.8         # max turn speed (rad/s)
-        DEAD_BAND = math.radians(3)  # ignore tiny angle errors
+        k = curvature_kappa(p0, p1, p2)
+        if abs(k) < 1e-3:
+            continue
 
-        # small errors → don't bother turning (reduces jitter)
-        if abs(delta_angle) < DEAD_BAND:
-            self.omega = 0.0
-            return self.omega
+        R = 1.0 / k
+        icr_x = x - R * math.sin(theta)
+        icr_y = y + R * math.cos(theta)
 
-        # proportional turn rate
-        omega = Kp * delta_angle
+        plt.scatter(icr_x, icr_y, color="purple", s=20, alpha=0.6, zorder=4)
 
-        # clamp to ±W_MAX
-        omega = max(-W_MAX, min(W_MAX, omega))
 
-        self.omega = omega
-        #print("Computed Angular Velocity:", self.omega)
-        return self.omega
-    
-    """def calculate_wheel_speeds(self, V_linear, V_angular, theta_target):
-        L = 0.1
-        
-        # Convert linear velocity into x and y components
-        self.V_x = V_linear * math.cos(theta_target)
-        self.V_y = V_linear * math.sin(theta_target)
-        
-        # Mecanum wheel equations
-        self.FL = (self.V_x - self.V_y - L * V_angular) * 100
-        self.FR = (self.V_x + self.V_y + L * V_angular) * 100
-        self.BL = (self.V_x + self.V_y - L * V_angular) * 100
-        self.BR = (self.V_x - self.V_y + L * V_angular) * 100
+# =========================
+# GRID WITH BIG OBSTACLES
+# =========================
+def make_big_obstacle_grid(w=GRID_W, h=GRID_H, n_obs=5):
+    grid = np.zeros((h, w), dtype=np.uint8)
 
-        #print(f"Wheel Speeds!!!! - FL: {self.FL:.2f}, FR: {self.FR:.2f}, BL: {self.BL:.2f}, BR: {self.BR:.2f}, Vx: {self.V_x:.2f}, Vy: {self.V_y:.2f}")
-        
-        return self.FL, self.FR, self.BL, self.BR, self.V_x, self.V_y"""
+    for _ in range(n_obs):
+        ow = random.randint(14, 28)
+        oh = random.randint(14, 28)
 
-    def convert_linear_to_motor_speed(self, v_linear):
-        self.radius = 0.04
-        self.dead_zone_limit = 100  # Define the dead zone range (-175 to 175)
-        self.max_speed = 255  # Max motor speed
+        x0 = random.randint(10, w - ow - 10)
+        y0 = random.randint(5, h - oh - 5)
 
-        self.omega = v_linear / self.radius
-        self.omega_max = self.V_MAX / self.radius
-        self.motor_speed = int((self.omega / self.omega_max) * self.max_speed)
-        self.motor_speed = max(-self.max_speed, min(self.max_speed, self.motor_speed))
+        grid[y0:y0 + oh, x0:x0 + ow] = 1
 
-        if self.motor_speed > 0:
-            self.adjusted_speed = self.motor_speed * ((self.max_speed - self.dead_zone_limit) / self.max_speed) + self.dead_zone_limit
-        elif self.motor_speed < 0:
-            self.adjusted_speed = self.motor_speed * ((-self.max_speed + self.dead_zone_limit) / -self.max_speed) - self.dead_zone_limit
-        else:
-            self.adjusted_speed = 0
-        self.adjusted_speed = max(-self.max_speed, min(self.adjusted_speed, self.max_speed))
-        return int(self.adjusted_speed)
+    if random.random() < 0.5:
+        y = random.randint(15, h - 15)
+        grid[y:y + 3, 10:w - 10] = 1
 
-def create_and_run(shared_data, poll=0.005):
-    return local_motion_testing(shared_data, poll=poll)
+    return grid
 
+
+def pick_start_goal(grid):
+    h, w = grid.shape
+
+    for _ in range(2000):
+        sy = random.randint(5, h - 6)
+        gy = random.randint(5, h - 6)
+
+        start = (3, sy)
+        goal = (w - 4, gy)
+
+        if grid[sy, 3] == 0 and grid[gy, w - 4] == 0:
+            return start, goal
+
+    return (3, h // 2), (w - 4, h // 2)
+
+
+# =========================
+# PATH DENSIFY + SMOOTH
+# =========================
+def densify_path(path, step=DENSIFY_STEP):
+    if not path or len(path) < 2 or step <= 1:
+        return path
+
+    out = []
+    for i in range(len(path) - 1):
+        x1, y1 = path[i]
+        x2, y2 = path[i + 1]
+        out.append((x1, y1))
+
+        dx = x2 - x1
+        dy = y2 - y1
+        n = max(abs(dx), abs(dy)) * step
+
+        if n > 0:
+            for k in range(1, n):
+                t = k / n
+                out.append((x1 + t * dx, y1 + t * dy))
+
+    out.append(path[-1])
+    return out
+
+
+def smooth_path_moving_average(path, window=SMOOTH_WINDOW):
+    if not path or len(path) < window or window < 3 or window % 2 == 0:
+        return path
+
+    half = window // 2
+    xs = np.array([p[0] for p in path], dtype=float)
+    ys = np.array([p[1] for p in path], dtype=float)
+
+    xs_s = xs.copy()
+    ys_s = ys.copy()
+
+    for i in range(half, len(path) - half):
+        xs_s[i] = xs[i - half:i + half + 1].mean()
+        ys_s[i] = ys[i - half:i + half + 1].mean()
+
+    xs_s[0], ys_s[0] = xs[0], ys[0]
+    xs_s[-1], ys_s[-1] = xs[-1], ys[-1]
+
+    return list(zip(xs_s.tolist(), ys_s.tolist()))
+
+
+# =========================
+# GEOMETRY / MODE LOGIC
+# =========================
+def wrap_pi(a):
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+def curvature_kappa(p0, p1, p2, eps=1e-9):
+    def dist(a, b):
+        return math.hypot(b[0] - a[0], b[1] - a[1])
+
+    a = dist(p0, p1)
+    b = dist(p1, p2)
+    c = dist(p0, p2)
+    if a < eps or b < eps or c < eps:
+        return 0.0
+
+    x1, y1 = p1[0] - p0[0], p1[1] - p0[1]
+    x2, y2 = p2[0] - p0[0], p2[1] - p0[1]
+    cross = abs(x1 * y2 - y1 * x2)
+    A = 0.5 * cross
+
+    return (4.0 * A) / (a * b * c)
+
+
+def merge_nearby_indices(indices, min_sep=5):
+    if not indices:
+        return []
+
+    indices = sorted(indices)
+    merged = [indices[0]]
+
+    for i in indices[1:]:
+        if i - merged[-1] >= min_sep:
+            merged.append(i)
+
+    return merged
+
+
+def classify_drive_mode(path_xy, headings, i):
+    """
+    Mecanum-aware approximation:
+    - ACKERMANN if local motion is mostly aligned with heading
+    - CRAB if local motion is strongly sideways relative to heading
+    """
+    if i <= 0 or i >= len(path_xy) - 1:
+        return "ACKERMANN"
+
+    x0, y0 = path_xy[i - 1]
+    x1, y1 = path_xy[i]
+    x2, y2 = path_xy[i + 1]
+
+    # average local direction of motion
+    dx = x2 - x0
+    dy = y2 - y0
+
+    seg_angle = math.atan2(dy, dx)
+    theta = headings[i]
+
+    rel = wrap_pi(seg_angle - theta)
+    rel_deg = abs(math.degrees(rel))
+
+    if rel_deg >= CRAB_ANGLE_DEG:
+        return "CRAB"
+
+    return "ACKERMANN"
+
+
+def annotate_modes(path_xy):
+    """
+    returns:
+        drive_modes : ACKERMANN/CRAB along the path
+        turn_points : indices where robot should pivot in place
+    """
+    n = len(path_xy)
+    if n < 3:
+        return ["ACKERMANN"] * n, []
+
+    waypoints = add_headings(path_xy)
+    headings = [wp[2] for wp in waypoints]
+
+    turn_heading = math.radians(TURN_HEADING_DEG)
+
+    drive_modes = ["ACKERMANN"] * n
+    turn_candidates = []
+
+    for i in range(1, n - 1):
+        k = curvature_kappa(path_xy[i - 1], path_xy[i], path_xy[i + 1])
+        R = float("inf") if abs(k) < 1e-6 else (1.0 / abs(k))
+        dtheta = wrap_pi(headings[i + 1] - headings[i])
+
+        # TURN = pivot event only
+        if R < R_MIN_CELLS or abs(dtheta) > turn_heading:
+            turn_candidates.append(i)
+
+        # drive mode classification for non-pivot travel
+        drive_modes[i] = classify_drive_mode(path_xy, headings, i)
+
+    turn_points = merge_nearby_indices(turn_candidates)
+
+    if n >= 2:
+        drive_modes[0] = drive_modes[1]
+        drive_modes[-1] = drive_modes[-2]
+
+    return drive_modes, turn_points
+
+
+# =========================
+# PLOT HELPERS
+# =========================
+MODE_COLOR = {
+    "ACKERMANN": "green",
+    "CRAB": "orange",
+    "TURN": "blue",
+}
+
+
+def plot_segmented_path(path_xy, modes):
+    if len(path_xy) < 2:
+        return
+
+    seg_start = 0
+    for i in range(1, len(path_xy)):
+        if modes[i] != modes[i - 1]:
+            xs = [p[0] for p in path_xy[seg_start:i + 1]]
+            ys = [p[1] for p in path_xy[seg_start:i + 1]]
+            plt.plot(xs, ys, color=MODE_COLOR[modes[i - 1]], linewidth=2.5, zorder=5)
+            seg_start = i
+
+    xs = [p[0] for p in path_xy[seg_start:]]
+    ys = [p[1] for p in path_xy[seg_start:]]
+    plt.plot(xs, ys, color=MODE_COLOR[modes[-1]], linewidth=2.5, zorder=5)
+
+
+# =========================
+# MAIN
+# =========================
 def main():
-    # Fake shared data (replace with actual shared data if available)
-    shared_data = {}
+    grid = make_big_obstacle_grid()
+    start, goal = pick_start_goal(grid)
 
-    # Create an instance of ReverseKinematics
-    local_motion_testing = create_and_run(shared_data)
+    inflated = inflate_obstacles(grid, ROBOT_RADIUS_M, CELL_SIZE_M)
+    path_grid = astar(inflated, start, goal)
 
+    if path_grid is None or len(path_grid) < 2:
+        print("No path found. Re-run (different random obstacles).")
+        return
 
+    path = [(float(x), float(y)) for (x, y) in path_grid]
 
-    
-    try:
-        while True:
-            time.sleep(1)  # Keep the main thread alive
-    except KeyboardInterrupt:
-        #print("Stopping ReverseKinematics...")
-        local_motion_testing.stop()
+    path = densify_path(path, step=DENSIFY_STEP)
+    path = smooth_path_moving_average(path, window=SMOOTH_WINDOW)
 
+    drive_modes, turn_points = annotate_modes(path)
 
-def run():
-    """Entry point for run_all: runs main() with default settings."""
-    main()
+    # ---- PLOT ----
+    plt.figure(figsize=(10, 7))
+    plt.imshow(grid, cmap="gray_r", origin="lower")
+    plt.title("A* Path Annotated with Local Motion Modes")
+
+    plot_segmented_path(path, drive_modes)
+    draw_headings(path)
+    draw_icr(path)
+
+    plt.scatter([start[0]], [start[1]], s=140, marker="o",
+                color="lime", edgecolors="black", linewidths=1.0, zorder=7)
+    plt.scatter([goal[0]], [goal[1]], s=140, marker="o",
+                color="red", edgecolors="black", linewidths=1.0, zorder=7)
+
+    for idx in turn_points:
+        x, y = path[idx]
+
+        plt.scatter([x], [y],
+                    s=100,
+                    color="blue",
+                    edgecolors="black",
+                    zorder=8)
+
+        plt.text(
+            x, y,
+            "TURN",
+            fontsize=8,
+            color="black",
+            bbox=dict(facecolor="white", alpha=0.8, boxstyle="round,pad=0.2"),
+            zorder=9
+        )
+
+    plt.plot([], [], color=MODE_COLOR["ACKERMANN"], label="ACKERMANN")
+    plt.plot([], [], color=MODE_COLOR["CRAB"], label="CRAB")
+    plt.scatter([], [], color="blue", edgecolors="black", label="TURN (pivot)", s=100)
+
+    plt.legend(loc="upper right")
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":
-    run()
-
-
-
-
-
+    main()
