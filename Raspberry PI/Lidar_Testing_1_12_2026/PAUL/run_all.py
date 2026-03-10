@@ -17,6 +17,8 @@ import LCD_processing
 import lidar_processing
 import lidar_local_map
 import lidar_obstacle_map
+import vision_processor
+import semantic_mapper
 
 from claw import start_claw_controller, start_claw_demo_thread
 from live_plots import pg_live_plot_loop, QApplication
@@ -390,6 +392,9 @@ def main():
 
     lidar_proc = lidar_processing.LidarProcessor(shared_data, debug=True)
 
+    semantic = semantic_mapper.create_and_run(shared_data, lidar_proc, poll=0.2)
+
+
     lidar_map = lidar_local_map.LidarLocalMap(lidar_proc, poll=0.02)
 
     # 🔥 IMPORTANT: pass lidar_proc, NOT lidar_map
@@ -397,6 +402,11 @@ def main():
 
     grid.lidar_map = lidar_map
     grid.lidar_obs = lidar_obs
+
+    vision = vision_processor.VisionProcessor(shared_data, poll=0.1)
+
+
+
 
     #local_motion_testing.create_and_run(shared_data, poll=0.05)
 
@@ -418,6 +428,15 @@ def main():
 
     manual_pad = ManualControlPad()
     manual_pad.show()
+
+    vision_window = vision.create_window(
+    show_video=False,
+    show_yaw_plot=False,
+    show_pitch_plot=False
+)
+
+    #vision_window.resize(1400, 800)
+    #vision_window.show()
 
 
     # ----- MAIN LIVE PLOT -----

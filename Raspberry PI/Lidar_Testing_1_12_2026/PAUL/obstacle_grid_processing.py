@@ -37,8 +37,8 @@ class ObstacleGrid:
         self.dx = 0.0
         self.dy = 0.0
         self.delta_s = 0.0
-        self.goal_x = 1.0
-        self.goal_y = 1.0
+        self.goal_x = -1.0
+        self.goal_y = 2.0
         self.cell_size = 0.05  # meters
         self.raw_x = 0.0
         self.raw_y = 0.0
@@ -55,7 +55,7 @@ class ObstacleGrid:
         self.navigation_done = False
         self.prev_goal = None
         self._last_replan_time = 0.0
-        self.REPLAN_COOLDOWN = 2  # seconds (tune this)
+        self.REPLAN_COOLDOWN = 1  # seconds (tune this)
 
         
         self.Q = np.diag([0.005, 0.005, math.radians(1.0)])  # Process noise covariance
@@ -449,7 +449,7 @@ class ObstacleGrid:
         # ---- 1. Build trinary map ----
         binary = (self.grid > 8).astype(int)
 
-        robot_radius = 0.01  # meters
+        robot_radius = 0.5  # meters
         inflated = inflate_obstacles(binary, robot_radius, self.cell_size)
 
         # ---- 3. Convert robot pose to grid ----
