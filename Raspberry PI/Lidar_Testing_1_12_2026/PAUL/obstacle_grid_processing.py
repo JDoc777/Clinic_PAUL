@@ -449,7 +449,7 @@ class ObstacleGrid:
         # ---- 1. Build trinary map ----
         binary = (self.grid > 8).astype(int)
 
-        robot_radius = 0.5  # meters
+        robot_radius = 0.6  # meters
         inflated = inflate_obstacles(binary, robot_radius, self.cell_size)
 
         # ---- 3. Convert robot pose to grid ----

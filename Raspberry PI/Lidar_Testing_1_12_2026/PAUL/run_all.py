@@ -392,8 +392,6 @@ def main():
 
     lidar_proc = lidar_processing.LidarProcessor(shared_data, debug=True)
 
-    semantic = semantic_mapper.create_and_run(shared_data, lidar_proc, poll=0.2)
-
 
     lidar_map = lidar_local_map.LidarLocalMap(lidar_proc, poll=0.02)
 
@@ -404,6 +402,10 @@ def main():
     grid.lidar_obs = lidar_obs
 
     vision = vision_processor.VisionProcessor(shared_data, poll=0.1)
+
+    semantic = semantic_mapper.create_and_run(vision, lidar_proc, poll=0.2)
+
+
 
 
 
@@ -429,14 +431,14 @@ def main():
     manual_pad = ManualControlPad()
     manual_pad.show()
 
-    vision_window = vision.create_window(
-    show_video=False,
-    show_yaw_plot=False,
-    show_pitch_plot=False
+    """vision_window = vision.create_window(
+    show_video=True,
+    show_yaw_plot=True,
+    show_pitch_plot=True,
 )
 
-    #vision_window.resize(1400, 800)
-    #vision_window.show()
+    vision_window.resize(1400, 800)
+    vision_window.show()"""
 
 
     # ----- MAIN LIVE PLOT -----

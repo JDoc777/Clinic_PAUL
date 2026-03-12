@@ -51,7 +51,7 @@ DEFAULTS = dict(
     USE_ATAN_MAPPING=True,
 
     TRACK_TTL_SEC=3.0,
-    MATCH_MAX_DEG=25.0,
+    MATCH_MAX_DEG=30.0,
     PRINT_HZ=8,
 
     # Plots / UI

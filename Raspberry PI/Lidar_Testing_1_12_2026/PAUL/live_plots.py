@@ -259,6 +259,14 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_binary.addItem(astar_raw_path)
     plot_binary.addItem(astar_smooth_path)
 
+    semantic_points = pg.ScatterPlotItem(
+        size=10,
+        brush=pg.mkBrush(255, 0, 255, 200)
+    )
+
+    plot_binary.addItem(semantic_points)
+    semantic_labels = []
+
         # ---------------- LiDAR Scan Plot (Robot Frame) ----------------
     '''plot_lidar = win.addPlot(title="LiDAR Scan (Robot Frame)")
     plot_lidar.setAspectLocked(True)
@@ -644,8 +652,48 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         except Exception:
             pass
 
-        
-    
+        # ---- draw semantic objects ----
+        try:
+
+            xs = []
+            ys = []
+
+            if hasattr(grid.shared, "semantic_objects"):
+
+                with grid.shared.semantic_lock:
+                    objs = list(grid.shared.semantic_objects)
+
+                # remove old labels
+                for lbl in semantic_labels:
+                    plot_binary.removeItem(lbl)
+                semantic_labels.clear()
+
+                for obj in objs:
+
+                    ix, iy = world_to_grid_coords(grid, obj["x"], obj["y"])
+
+                    xs.append(ix)
+                    ys.append(iy)
+
+                    # create label text
+                    text = f'{obj["label"]}#{obj["track_id"]}'
+
+                    label = pg.TextItem(
+                        text=text,
+                        color=(0, 0, 0),
+                        anchor=(0,1)
+                    )
+
+                    label.setPos(ix, iy)
+                    plot_binary.addItem(label)
+
+                    semantic_labels.append(label)
+
+            semantic_points.setData(xs, ys)
+
+        except Exception:
+            semantic_points.setData([], [])
+                    
 
 
 
