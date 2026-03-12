@@ -38,6 +38,7 @@ class VoiceEngine:
             "kill": "kill.mp3",
             "sonic": "sonic.mp3",
             "yay": "yay.mp3",
+            "womp": "wrong.mp3",
 
         }
         # Start persistent thread

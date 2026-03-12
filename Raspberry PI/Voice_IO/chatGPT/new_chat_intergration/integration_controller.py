@@ -20,7 +20,6 @@ class stringController():
 
         # run processing in a worker thread
         threading.Thread(target=self.process_command, daemon=True).start()
-
     def process_command(self):
         w, cmd = self.extract_command(self.inStr)
 
@@ -43,6 +42,16 @@ class stringController():
                 args=(cmd,),
                 daemon=True
             ).start()
+
+        else:
+            # no wake word detected
+            threading.Thread(
+                target=engine.speak,
+                #cmd = "womp",
+                args=("I dont understand",),
+                daemon=True
+            ).start()
+        
 
     def extract_command(self, text: str):
 
