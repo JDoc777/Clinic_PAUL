@@ -3,6 +3,8 @@ import threading
 import time
 from Discord_Listen import DiscordListener
 import ttsNoQ_switch as noQ
+from dotenv import load_dotenv
+import os
 
 
 WAKE_WORD1 = "hey paul"
@@ -60,6 +62,8 @@ class stringController():
 
 # ---------------- MAIN ----------------
 
+load_dotenv()
+
 chat = chat_worker.chatLib()
 
 stringCtrl = stringController()
@@ -69,7 +73,9 @@ engine = noQ.VoiceEngine(
     0.05
 )
 
-TOKEN = ""
+TOKEN = os.getenv("DISCORD_BOT_KEY")
+
+print("DISCORD_BOT_KEY loaded:", bool(TOKEN))
 
 shared_state = {
     "latest_string": "",

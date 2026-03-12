@@ -118,26 +118,27 @@ class DiscordListener:
 
 
 # Example usage
-# if __name__ == "__main__":
-#     import threading
+if __name__ == "__main__":
+    import threading
 
-#     TOKEN = os.getenv("DISCORD_BOT_KEY")
-#     print("DISCORD_BOT_KEY loaded:", bool(TOKEN))
+    TOKEN = os.getenv("DISCORD_BOT_KEY")
+    print("DISCORD_BOT_KEY loaded:", bool(TOKEN))
+    print("DISCORD_BOT_KEY:", (TOKEN))
 
-#     shared_state = {
-#         "latest_string": "",
-#         "new_flag": False,
-#         "lock": threading.Lock()
-#     }
+    shared_state = {
+        "latest_string": "",
+        "new_flag": False,
+        "lock": threading.Lock()
+    }
 
-#     listener = DiscordListener(
-#         token=TOKEN,
-#         channel_name="your-channel-name",
-#         shared_state=shared_state
-#     )
+    listener = DiscordListener(
+        token=TOKEN,
+        channel_name="your-channel-name",
+        shared_state=shared_state
+    )
 
-#     listener.start()
+    listener.start()
 
-#     # Keep main thread alive
-#     while True:
-#         pass
+    # Keep main thread alive
+    while True:
+        pass
