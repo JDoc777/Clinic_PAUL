@@ -46,11 +46,20 @@ def astar(grid, start, goal):
         closed_set.add(current)
 
         for dx, dy in neighbors:
-            nx, ny = cx + dx, cy + dy
+
+            nx = cx + dx
+            ny = cy + dy
+
             if not (0 <= nx < w and 0 <= ny < h):
                 continue
+
             if grid[ny, nx] == 1:
                 continue
+
+            # prevent corner cutting
+            if dx != 0 and dy != 0:
+                if grid[cy, nx] == 1 or grid[ny, cx] == 1:
+                    continue
 
             step_cost = math.hypot(dx, dy)
             new_cost = cost + step_cost
@@ -63,11 +72,7 @@ def astar(grid, start, goal):
 
     return None
 
-def inflate_obstacles(grid, robot_radius_m, cell_size):
-    """
-    Expand all obstacles outward by robot radius (in meters).
-    This marks nearby free cells as 'occupied' so A* avoids them.
-    """
+"""def inflate_obstacles(grid, robot_radius_m, cell_size):
 
     radius_cells = int(robot_radius_m / cell_size)
     h, w = grid.shape
@@ -83,6 +88,32 @@ def inflate_obstacles(grid, robot_radius_m, cell_size):
                     for dx in range(-radius_cells, radius_cells + 1):
                         ny = iy + dy
                         nx = ix + dx
+                        if 0 <= ny < h and 0 <= nx < w:
+                            inflated[ny, nx] = 1
+
+    return inflated"""
+
+def inflate_obstacles(grid, robot_radius_m, cell_size):
+
+    radius_cells = int(robot_radius_m / cell_size)
+    h, w = grid.shape
+
+    inflated = grid.copy()
+
+    for iy in range(h):
+        for ix in range(w):
+
+            if grid[iy, ix] == 1:
+
+                for dy in range(-radius_cells, radius_cells + 1):
+                    for dx in range(-radius_cells, radius_cells + 1):
+
+                        if dx*dx + dy*dy > radius_cells*radius_cells:
+                            continue  # outside circle
+
+                        ny = iy + dy
+                        nx = ix + dx
+
                         if 0 <= ny < h and 0 <= nx < w:
                             inflated[ny, nx] = 1
 

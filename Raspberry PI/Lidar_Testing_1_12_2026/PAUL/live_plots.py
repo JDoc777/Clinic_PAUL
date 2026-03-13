@@ -41,7 +41,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     win = pg.GraphicsLayoutWidget(show=True, title="Occupancy Grid, Log-Odds Grid, Fused Robot Position & Servo Angles")
     win.resize(1800, 800)
 
-    # Occupancy Grid Plot (top-left)
+    """# Occupancy Grid Plot (top-left)
     plot_grid = win.addPlot(title="Occupancy Grid")
     plot_grid.setAspectLocked(True)
     gridDiv = grid.grid.shape[0]
@@ -55,20 +55,20 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_grid.addItem(robot_dot)
     lut = np.zeros((256, 3), dtype=np.ubyte)
     lut[:128] = [0, 255, 0]    # green for free
-    lut[128:] = [255, 0, 0]    # red for occupied
+    lut[128:] = [255, 0, 0]    # red for occupied"""
 
-    # Log-Odds Grid Plot (top-right)
+    """# Log-Odds Grid Plot (top-right)
     plot_logodds = win.addPlot(title="Log-Odds Grid")
     plot_logodds.setAspectLocked(True)
     plot_logodds.setXRange(0, grid.grid.shape[1])
     plot_logodds.setYRange(0, grid.grid.shape[0])
     plot_logodds.showGrid(x=True, y=True, alpha=0.3)
     img_logodds = pg.ImageItem()
-    plot_logodds.addItem(img_logodds)
+    plot_logodds.addItem(img_logodds)"""
 
     # Add robot position dot to log-odds plot
     robot_dot_logodds = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
-    plot_logodds.addItem(robot_dot_logodds)
+    #plot_logodds.addItem(robot_dot_logodds)
 
     # --- Add legend for log-odds grid colors ---
     legend_text = (
@@ -80,9 +80,57 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         "</span>"
     )
     legend = pg.TextItem(html=legend_text, anchor=(0,0), border='w', fill=(200, 200, 200, 150))
-    plot_logodds.addItem(legend)
+    #plot_logodds.addItem(legend)
     legend.setPos(2.2, -0.5)  # Adjust position as needed
 
+    # Corrected Positions Plot (top-right)
+    plot_corrected = win.addPlot(title="Corrected Positions (Fused)")
+    plot_corrected.setAspectLocked(True)
+    plot_corrected.setXRange(0, grid.grid.shape[1])
+    plot_corrected.setYRange(0, grid.grid.shape[0])
+    plot_corrected.showGrid(x=True, y=True, alpha=0.3)
+    img_corrected = pg.ImageItem()
+    plot_corrected.addItem(img_corrected)
+
+    # Add robot position dot to corrected positions plot
+    robot_dot_corrected = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
+    plot_corrected.addItem(robot_dot_corrected)
+
+    # Add legend for corrected positions
+    corrected_legend_text = (
+        "<span style='font-size:12pt'>"
+        "<b>Legend:</b><br>"
+        "<span style='color:black;'>■</span> Free (log-odds &lt; 0)<br>"
+        "<span style='color:gray;'>■</span> Unknown (log-odds ≈ 0)<br>"
+        "<span style='color:white;'>■</span> Occupied (log-odds &gt; 0)"
+        "</span>"
+    )
+    corrected_legend = pg.TextItem(html=corrected_legend_text, anchor=(0, 0), border='w', fill=(200, 200, 200, 150))
+    plot_corrected.addItem(corrected_legend)
+    corrected_legend.setPos(2.2, -0.5)  # Adjust position as needed
+
+    # Add a new plot for robot movement toward the goal (top-right)
+    plot_robot_to_goal = win.addPlot(title="Robot Movement to Goal")
+    plot_robot_to_goal.setAspectLocked(True)
+    plot_robot_to_goal.setXRange(0, grid.grid.shape[1])
+    plot_robot_to_goal.setYRange(0, grid.grid.shape[0])
+    plot_robot_to_goal.showGrid(x=True, y=True, alpha=0.3)
+
+    # Add the robot's position as a green dot
+    robot_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 255, 0, 200))  # Green dot
+    plot_robot_to_goal.addItem(robot_position_dot)
+
+    # Add the goal position as a red dot
+    goal_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(255, 0, 0, 200))  # Red dot
+    plot_robot_to_goal.addItem(goal_position_dot)
+
+    # Add a trajectory line to show the robot's gradual movement
+    robot_trajectory_line = pg.PlotDataItem(pen=pg.mkPen('g', width=2))  # Green line
+    plot_robot_to_goal.addItem(robot_trajectory_line)
+
+    # Initialize trajectory data
+    robot_trajectory_x = []
+    robot_trajectory_y = []
 
     # Move to the next row for the remaining bottom plots
     win.nextRow()
@@ -302,28 +350,42 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
 
 
     def update():
-        # Occupancy grid
+        """# Occupancy grid
         grid_disp = np.zeros_like(grid.grid, dtype=np.uint8)
         grid_disp[grid.grid <= 0] = 64   # green
         grid_disp[grid.grid > 0] = 192   # red
         img.setImage(np.flipud(grid_disp.T), levels=(0, 255), lut=lut)
         QtCore.QCoreApplication.processEvents()
-        img.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
+        img.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))"""
 
-        # Log-odds grid visualization
+        """# Log-odds grid visualization
         logodds_disp = np.clip(grid.grid, -10, 10)
         # Normalize to 0-255 for display: -10 -> 0, 0 -> 127, +10 -> 255
         logodds_img = ((logodds_disp + 10) * (255.0 / 20)).astype(np.uint8)
         img_logodds.setImage(np.flipud(logodds_img.T), levels=(0, 255))
-        img_logodds.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
+        img_logodds.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))"""
+
+        # Corrected positions visualization
+        try:
+            # Ensure corrected_grid is properly normalized and visualized
+            corrected_disp = np.clip(grid.grid, -10, 10)  # Use the same grid data as log-odds for now
+            # Normalize to 0-255 for display: -10 -> 0, 0 -> 127, +10 -> 255
+            corrected_img = ((corrected_disp + 10) * (255.0 / 20)).astype(np.uint8)
+            img_corrected.setImage(np.flipud(corrected_img.T), levels=(0, 255))
+            img_corrected.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
+        except Exception:
+            # If corrected positions not available yet, skip plotting
+            pass
 
         # Robot position
         x_pos = fused_pose['x']
         y_pos = fused_pose['y']
         robot_ix, robot_iy = world_to_grid_coords(grid, x_pos, y_pos)
 
-        robot_dot.setData([robot_ix], [robot_iy])
+        #robot_dot.setData([robot_ix], [robot_iy])
         robot_dot_logodds.setData([robot_ix], [robot_iy])
+        robot_dot_corrected.setData([robot_ix], [robot_iy])
+
         # Trajectory: only append if position changed
         if not _traj_x or (abs(x_pos - _traj_x[-1]) > 1e-4 or abs(y_pos - _traj_y[-1]) > 1e-4):
             _traj_x.append(x_pos)
@@ -487,7 +549,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             
 
         # Binary map visualization
-        binary_map = (grid.grid > 8).astype(int)  # Convert grid to binary map
+        binary_map = (grid.grid >= 5).astype(np.uint8)  # Convert grid to binary map
         binary_img = (binary_map * 255).astype(np.uint8)  # Scale binary values to 0-255
         img_binary.setImage(np.flipud(binary_img.T), levels=(0, 255))
         img_binary.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))

@@ -32,7 +32,6 @@ class ObstacleGrid:
         self._running.set()
         self._thread = threading.Thread(target=self.loop, daemon=True)
         self._last_time = time.time()
-        self._thread.start()
         self.theta_fused = 0.0
         self.dx = 0.0
         self.dy = 0.0
@@ -77,6 +76,8 @@ class ObstacleGrid:
                 # --- Selective decay setup ---
         self.observed_mask = np.zeros_like(self.grid, dtype=bool)
         self.DECAY = 0.9995  # tune this (0.995 slow, 0.98 faster)
+        self._thread.start()
+
 
 
     def loop(self):
@@ -146,7 +147,7 @@ class ObstacleGrid:
             ]:
                 self.log_odometry(x_hit, y_hit, conf)
 
-                binary_map = (self.grid > 8).astype(int)
+                binary = (self.grid > 8).astype(np.uint8)
 
 
             # Debug print every second
@@ -390,7 +391,7 @@ class ObstacleGrid:
         end_i = min(len(pts), closest_i + lookahead)
 
         for (x, y) in pts[closest_i:end_i]:
-            if self.grid[y, x] > 1000:
+            if self.grid[y, x] > 8:
                 return True
 
         return False
@@ -454,9 +455,9 @@ class ObstacleGrid:
         """
         # ---- 1. Make a binary occupancy map ----
         # ---- 1. Build trinary map ----
-        binary = (self.grid > 8).astype(int)
+        binary = (self.grid > 8).astype(np.uint8)
 
-        robot_radius = 0.01  # meters
+        robot_radius = 0.20  # meters
         self.inflated_grid = inflate_obstacles(binary, robot_radius, self.cell_size)
         inflated = self.inflated_grid
 
