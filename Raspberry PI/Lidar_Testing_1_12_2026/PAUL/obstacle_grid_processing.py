@@ -36,8 +36,8 @@ class ObstacleGrid:
         self.dx = 0.0
         self.dy = 0.0
         self.delta_s = 0.0
-        self.goal_x = 1.0
-        self.goal_y = 1.0
+        self.goal_x = 3.0
+        self.goal_y = 0.0
         self.cell_size = 0.05  # meters
         self.raw_x = 0.0
         self.raw_y = 0.0
@@ -75,7 +75,7 @@ class ObstacleGrid:
         self.setup_grid(width_m=10, height_m=10, cell_size=self.cell_size)
                 # --- Selective decay setup ---
         self.observed_mask = np.zeros_like(self.grid, dtype=bool)
-        self.DECAY = 0.9995  # tune this (0.995 slow, 0.98 faster)
+        self.DECAY = 0.98  # tune this (0.995 slow, 0.98 faster)
         self._thread.start()
 
 
@@ -147,7 +147,8 @@ class ObstacleGrid:
             ]:
                 self.log_odometry(x_hit, y_hit, conf)
 
-                binary = (self.grid > 8).astype(np.uint8)
+                binary = (self.grid >= 1).astype(np.uint8)
+
 
 
             # Debug print every second
@@ -160,21 +161,18 @@ class ObstacleGrid:
                 current_goal = (self.goal_x, self.goal_y)
 
                 if self.current_path_grid is None:
-                    print("[REPLAN] No path exists.")
-                    self.try_replan(current_goal)
+                    self.try_replan(current_goal, reason="No path exists")
 
                 elif current_goal != self.prev_goal:
-                    print("[REPLAN] Goal changed.")
-                    self.try_replan(current_goal)
-                    self.prev_goal = current_goal
+                    if self.try_replan(current_goal, reason="Goal changed"):
+                        self.prev_goal = current_goal
 
                 elif self.path_is_blocked():
-                    print("[REPLAN] Path blocked.")
-                    self.try_replan(current_goal)
+                    self.try_replan(current_goal, reason="Path blocked")
 
                 elif self.robot_far_from_path():
-                    print("[REPLAN] Robot deviated from path.")
-                    self.try_replan(current_goal)
+                    self.try_replan(current_goal, reason="Robot deviated from path")
+
 
             #print("Calling waypoint_step now...")
             if self.current_waypoints and not self.navigation_done:
@@ -277,7 +275,7 @@ class ObstacleGrid:
         l_occ = +2.0   # log-odds increment for occupied
         l_free = -3.0  # log-odds increment for free
 
-        X_new = fused_pose['x']
+        X_new = -fused_pose['x']
         Y_new = fused_pose['y']
 
         start_ix, start_iy = self.world_to_grid(X_new, Y_new)
@@ -375,7 +373,7 @@ class ObstacleGrid:
 
         return v_fused, w_fused
 
-    def path_is_blocked(self, lookahead=30):
+    def path_is_blocked(self, lookahead=40):
         if self.current_path_grid is None:
             return True
 
@@ -391,7 +389,7 @@ class ObstacleGrid:
         end_i = min(len(pts), closest_i + lookahead)
 
         for (x, y) in pts[closest_i:end_i]:
-            if self.grid[y, x] > 8:
+            if self.grid[y, x] > 1:
                 return True
 
         return False
@@ -430,19 +428,18 @@ class ObstacleGrid:
             self.current_wp_index = 0
             self.navigation_done = False
 
-    def try_replan(self, goal):
+    def try_replan(self, goal, reason="Unknown"):
         now = time.time()
 
         if now - self._last_replan_time < self.REPLAN_COOLDOWN:
-            return
-
-        print("[REPLAN] Running A*")
-
-        self.snapshot_requested = True
+            return False
 
         self._last_replan_time = now
+        print(f"[REPLAN] {reason}")
+        print("[REPLAN] Running A*")
+
         self.plan_to_goal(goal)
-        self.snapshot_requested = True
+        return True
             
     def test_astar_once(self, goal_world):
         """
@@ -455,9 +452,9 @@ class ObstacleGrid:
         """
         # ---- 1. Make a binary occupancy map ----
         # ---- 1. Build trinary map ----
-        binary = (self.grid > 8).astype(np.uint8)
+        binary = (self.grid >= 1).astype(np.uint8)
 
-        robot_radius = 0.20  # meters
+        robot_radius = 0.15  # meters
         self.inflated_grid = inflate_obstacles(binary, robot_radius, self.cell_size)
         inflated = self.inflated_grid
 
@@ -477,6 +474,15 @@ class ObstacleGrid:
 
         # ---- 5. Run A* ----
         path_grid = astar(inflated, start_A, goal_A)
+
+        if path_grid is not None:
+
+            bad = []
+            for (x, y) in path_grid:
+                if inflated[y, x] == 1:
+                    bad.append((x, y))
+
+            print("BAD CELLS:", len(bad))
 
         # Always store the start and goal for visualization
         self.current_astar_start = start_A

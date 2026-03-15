@@ -402,9 +402,9 @@ def main():
 
     #local_motion_testing.create_and_run(shared_data, poll=0.05)
 
-    logger = robot_logger.create_and_run(grid, "robot_run.jsonl")
+    #logger = robot_logger.create_and_run(grid, "robot_run.jsonl")
 
-    local_motion_processing.create_and_run(grid)
+    #local_motion_processing.create_and_run(grid)
 
 
 

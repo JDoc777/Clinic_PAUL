@@ -41,7 +41,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     win = pg.GraphicsLayoutWidget(show=True, title="Occupancy Grid, Log-Odds Grid, Fused Robot Position & Servo Angles")
     win.resize(1800, 800)
 
-    """# Occupancy Grid Plot (top-left)
+    # Occupancy Grid Plot (top-left)
     plot_grid = win.addPlot(title="Occupancy Grid")
     plot_grid.setAspectLocked(True)
     gridDiv = grid.grid.shape[0]
@@ -55,20 +55,20 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_grid.addItem(robot_dot)
     lut = np.zeros((256, 3), dtype=np.ubyte)
     lut[:128] = [0, 255, 0]    # green for free
-    lut[128:] = [255, 0, 0]    # red for occupied"""
+    lut[128:] = [255, 0, 0]    # red for occupied
 
-    """# Log-Odds Grid Plot (top-right)
+    # Log-Odds Grid Plot (top-right)
     plot_logodds = win.addPlot(title="Log-Odds Grid")
     plot_logodds.setAspectLocked(True)
     plot_logodds.setXRange(0, grid.grid.shape[1])
     plot_logodds.setYRange(0, grid.grid.shape[0])
     plot_logodds.showGrid(x=True, y=True, alpha=0.3)
     img_logodds = pg.ImageItem()
-    plot_logodds.addItem(img_logodds)"""
+    plot_logodds.addItem(img_logodds)
 
     # Add robot position dot to log-odds plot
     robot_dot_logodds = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
-    #plot_logodds.addItem(robot_dot_logodds)
+    plot_logodds.addItem(robot_dot_logodds)
 
     # --- Add legend for log-odds grid colors ---
     legend_text = (
@@ -80,7 +80,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         "</span>"
     )
     legend = pg.TextItem(html=legend_text, anchor=(0,0), border='w', fill=(200, 200, 200, 150))
-    #plot_logodds.addItem(legend)
+    plot_logodds.addItem(legend)
     legend.setPos(2.2, -0.5)  # Adjust position as needed
 
     # Corrected Positions Plot (top-right)
@@ -259,49 +259,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_binary.addItem(astar_raw_path)
     plot_binary.addItem(astar_smooth_path)
 
-    # Local Motion Mode Plot
-    plot_local_motion = win.addPlot(title="Local Motion Modes")
-    plot_local_motion.setAspectLocked(True)
-    plot_local_motion.setXRange(0, grid.grid.shape[1])
-    plot_local_motion.setYRange(0, grid.grid.shape[0])
-    plot_local_motion.showGrid(x=True, y=True, alpha=0.3)
-
-    # background binary map image
-    img_local_motion = pg.ImageItem()
-    plot_local_motion.addItem(img_local_motion)
-
-    # segmented colored path items
-    local_motion_ackermann = pg.PlotDataItem(pen=pg.mkPen('g', width=3))
-    local_motion_crab = pg.PlotDataItem(pen=pg.mkPen((255, 165, 0), width=3))  # orange
-
-    plot_local_motion.addItem(local_motion_ackermann)
-    plot_local_motion.addItem(local_motion_crab)
-
-    # turn markers
-    local_motion_turns = pg.ScatterPlotItem(
-        size=10,
-        brush=pg.mkBrush(0, 0, 255, 220),
-        pen=pg.mkPen('k', width=1)
-    )
-    plot_local_motion.addItem(local_motion_turns)
-
-    # start / goal markers
-    local_motion_start = pg.ScatterPlotItem(
-        size=12,
-        brush=pg.mkBrush(0, 255, 0, 220),
-        pen=pg.mkPen('k', width=1)
-    )
-    local_motion_goal = pg.ScatterPlotItem(
-        size=12,
-        brush=pg.mkBrush(255, 0, 0, 220),
-        pen=pg.mkPen('k', width=1)
-    )
-
-    plot_local_motion.addItem(local_motion_start)
-    plot_local_motion.addItem(local_motion_goal)
-
-    
-
         # ---------------- LiDAR Scan Plot (Robot Frame) ----------------
     '''plot_lidar = win.addPlot(title="LiDAR Scan (Robot Frame)")
     plot_lidar.setAspectLocked(True)
@@ -344,26 +301,35 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     )
     plot_lidar.addItem(lidar_robot_dot)
 
+        # --- LiDAR Occupancy Grid Plot ---
+    plot_lidar_grid = win.addPlot(title="LiDAR Occupancy Grid")
+    plot_lidar_grid.setAspectLocked(True)
+    plot_lidar_grid.setXRange(0, grid.grid.shape[1])
+    plot_lidar_grid.setYRange(0, grid.grid.shape[0])
+    plot_lidar_grid.showGrid(x=True, y=True, alpha=0.3)
+
+    lidar_grid_img = pg.ImageItem()
+    plot_lidar_grid.addItem(lidar_grid_img)
 
 
 
 
 
     def update():
-        """# Occupancy grid
+        # Occupancy grid
         grid_disp = np.zeros_like(grid.grid, dtype=np.uint8)
         grid_disp[grid.grid <= 0] = 64   # green
         grid_disp[grid.grid > 0] = 192   # red
         img.setImage(np.flipud(grid_disp.T), levels=(0, 255), lut=lut)
         QtCore.QCoreApplication.processEvents()
-        img.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))"""
+        img.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
 
-        """# Log-odds grid visualization
+        # Log-odds grid visualization
         logodds_disp = np.clip(grid.grid, -10, 10)
         # Normalize to 0-255 for display: -10 -> 0, 0 -> 127, +10 -> 255
         logodds_img = ((logodds_disp + 10) * (255.0 / 20)).astype(np.uint8)
         img_logodds.setImage(np.flipud(logodds_img.T), levels=(0, 255))
-        img_logodds.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))"""
+        img_logodds.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
 
         # Corrected positions visualization
         try:
@@ -382,7 +348,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         y_pos = fused_pose['y']
         robot_ix, robot_iy = world_to_grid_coords(grid, x_pos, y_pos)
 
-        #robot_dot.setData([robot_ix], [robot_iy])
+        robot_dot.setData([robot_ix], [robot_iy])
         robot_dot_logodds.setData([robot_ix], [robot_iy])
         robot_dot_corrected.setData([robot_ix], [robot_iy])
 
@@ -549,98 +515,11 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             
 
         # Binary map visualization
-        binary_map = (grid.grid >= 5).astype(np.uint8)  # Convert grid to binary map
+        binary_map = (grid.grid >= 1).astype(np.uint8)
         binary_img = (binary_map * 255).astype(np.uint8)  # Scale binary values to 0-255
-        img_binary.setImage(np.flipud(binary_img.T), levels=(0, 255))
+        #img_binary.setImage(np.flipud(binary_img.T), levels=(0, 255))
+        img_binary.setImage(binary_img.T, levels=(0, 255))
         img_binary.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
-
-        # =========================
-        # Local Motion background
-        # =========================
-
-        img_local_motion.setImage(np.flipud(binary_img.T), levels=(0,255))
-        img_local_motion.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
-
-        # =========================
-        # Local Motion Path Drawing
-        # =========================
-
-        path = grid.current_path_smooth
-        modes = getattr(grid, "current_path_modes", None)
-
-        if path is not None and modes is not None and len(path) == len(modes):
-
-            ack_x = []
-            ack_y = []
-
-            crab_x = []
-            crab_y = []
-
-            for i in range(len(path)-1):
-
-                x1, y1 = path[i]
-                x2, y2 = path[i+1]
-
-                if modes[i] == "ACKERMANN":
-
-                    ack_x += [x1, x2, None]
-                    ack_y += [y1, y2, None]
-
-                elif modes[i] == "CRAB":
-
-                    crab_x += [x1, x2, None]
-                    crab_y += [y1, y2, None]
-
-            local_motion_ackermann.setData(ack_x, ack_y)
-            local_motion_crab.setData(crab_x, crab_y)
-
-        else:
-
-            local_motion_ackermann.clear()
-            local_motion_crab.clear()
-
-        # =========================
-        # Local Motion TURN markers
-        # =========================
-
-        turn_points = getattr(grid, "current_turn_points", None)
-
-        if path is not None and turn_points is not None:
-
-            turn_x = []
-            turn_y = []
-
-            for idx in turn_points:
-
-                if idx < len(path):
-
-                    x, y = path[idx]
-
-                    turn_x.append(x)
-                    turn_y.append(y)
-
-            local_motion_turns.setData(turn_x, turn_y)
-
-        else:
-
-            local_motion_turns.clear()
-        
-        # =========================
-        # Local Motion START / GOAL
-        # =========================
-
-        if path is not None and len(path) > 0:
-
-            sx, sy = path[0]
-            gx, gy = path[-1]
-
-            local_motion_start.setData([sx], [sy])
-            local_motion_goal.setData([gx], [gy])
-
-        else:
-
-            local_motion_start.clear()
-            local_motion_goal.clear()
 
         # A* Pathfinding Visualization on Binary Map
         try:
@@ -668,6 +547,33 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             astar_raw_path.setData([], [])
             astar_smooth_path.setData([], [])
 
+        # Update the robot's position and goal on the new plot
+        try:
+            # Get the robot's current position
+            current_x = fused_pose['x']
+            current_y = fused_pose['y']
+
+            # Get the goal position
+            goal_x, goal_y = grid.goal_x, grid.goal_y
+
+            # Update the robot's position dot
+            robot_position_dot.setData([current_x], [current_y])
+
+            # Update the goal position dot
+            goal_position_dot.setData([goal_x], [goal_y])
+
+            # Append the robot's position to the trajectory if it has moved
+            if not robot_trajectory_x or (abs(current_x - robot_trajectory_x[-1]) > 1e-4 or abs(current_y - robot_trajectory_y[-1]) > 1e-4):
+                robot_trajectory_x.append(current_x)
+                robot_trajectory_y.append(current_y)
+
+            # Update the trajectory line
+            robot_trajectory_line.setData(robot_trajectory_x, robot_trajectory_y)
+        except AttributeError:
+            # If data is not available yet, clear the plot
+            robot_position_dot.setData([], [])
+            goal_position_dot.setData([], [])
+            robot_trajectory_line.setData([], [])
         
             # ---------------- LiDAR Scan (Robot Frame) ----------------
         '''try:
@@ -723,6 +629,21 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             lidar_traj_dot.setData([x], [y])
         except Exception:
             lidar_robot_dot.setData([], [])
+
+        try:
+            lidar_grid = grid.grid   # same grid for now
+
+            # Normalize log-odds to grayscale
+            disp = np.clip(lidar_grid, -5, 5)
+            lidar_img = ((disp + 5) * (255.0 / 10)).astype(np.uint8)
+
+            lidar_grid_img.setImage(np.flipud(lidar_img.T), levels=(0, 255))
+            lidar_grid_img.setRect(
+                QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0])
+            )
+
+        except Exception:
+            pass
 
         
     
