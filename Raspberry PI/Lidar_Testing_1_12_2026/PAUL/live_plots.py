@@ -311,6 +311,9 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     lidar_grid_img = pg.ImageItem()
     plot_lidar_grid.addItem(lidar_grid_img)
 
+    
+
+
 
 
 
@@ -644,6 +647,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
 
         except Exception:
             pass
+
 
         
     
