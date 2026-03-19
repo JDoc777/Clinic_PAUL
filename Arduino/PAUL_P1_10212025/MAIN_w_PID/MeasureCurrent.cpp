@@ -31,19 +31,19 @@ float readCurrentAmps() {
 
 void checkResistance(float normCurrent) {
   static unsigned long triggerTime = 0;  // time when triggered
-  Serial.println(normCurrent);
-  Serial.println("!!!!!!!!!!!!!!!!!!!");
+  //Serial.println(normCurrent);
+  //Serial.println("!!!!!!!!!!!!!!!!!!!");
   if (normCurrent < TRIGGER_LEVEL && !resistanceFlag) {
     resistanceFlag = true;
     flagAvoid = !flagAvoid;  // toggle once per trigger
-    Serial.println(flagAvoid);
+    //Serial.println(flagAvoid);
     triggerTime = millis();
-    Serial.println("⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ Triggered latch");
+    //Serial.println("⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ Triggered latch");
   }
   if (resistanceFlag && (millis() - triggerTime >= FlagLatchTime)) {
     resistanceFlag = false;
     flagAvoid = !flagAvoid;
-    Serial.println(flagAvoid);
+    //Serial.println(flagAvoid);
     // Serial.println("✅ Auto-reset after 1s");
   }
 }
@@ -52,8 +52,8 @@ void plotCurrentRaw() {
   float current = readCurrentAmps();     // read in Amps
   float v = (current * SENSITIVITY) + 2.5;  // back-calc voltage for reference (optional)
 
-  Serial.print("Current_A:"); 
-  Serial.print(current, 4);   // plot current in amps (4 decimal places)
-  Serial.print("\tVoltage_V:"); 
-  Serial.println(v, 3);       // plot voltage for zero calibration visualization
+  //Serial.print("Current_A:"); 
+  //Serial.print(current, 4);   // plot current in amps (4 decimal places)
+  //Serial.print("\tVoltage_V:"); 
+  //Serial.println(v, 3);       // plot voltage for zero calibration visualization
 }

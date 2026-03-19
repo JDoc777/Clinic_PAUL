@@ -24,12 +24,12 @@ float getInsideTemp() {
   tin = dht0.readTemperature();
   if (isnan(tin)){
     tin = 250;
-    Serial.println("Error: Failed to read temperature of inside DHT sensor");
+    //Serial.println("Error: Failed to read temperature of inside DHT sensor");
   }
   else {
     tin += tin_offset;  // move here
-    Serial.print("Inside Temperature = ");
-    Serial.println(tin);
+    //Serial.print("Inside Temperature = ");
+    //Serial.println(tin);
     
   }
   return tin; 
@@ -39,12 +39,12 @@ float getInsideHumidity() {
   hin = dht0.readHumidity();
   if (isnan(hin)){
     hin = 101;
-    Serial.println("Error: Failed to read humidity of inside DHT sensor");
+    //Serial.println("Error: Failed to read humidity of inside DHT sensor");
   }
   else {
     hin += hin_offset;  // move here
-    Serial.print("Inside Himidity = ");
-    Serial.println(hin);
+    //Serial.print("Inside Himidity = ");
+    //Serial.println(hin);
   }
   return hin;
 }
@@ -53,12 +53,12 @@ float getOutsideTemp() {
   tout = dht1.readTemperature();
   if (isnan(tout)){
     tout = 250;
-    Serial.println("Error: Failed to read temperature of outside DHT sensor");
+    //Serial.println("Error: Failed to read temperature of outside DHT sensor");
   }
   else {
     tout += tout_offset;  // move here
-    Serial.print("Outside Temperature = ");
-    Serial.println(tout);
+    //Serial.print("Outside Temperature = ");
+    //Serial.println(tout);
   }
   return tout;
 }  
@@ -67,12 +67,12 @@ float getOutsideHumidity() {
   hout = dht1.readHumidity();
   if (isnan(hout)){
     hout = 101;
-    Serial.println("Error: Failed to read humidity of outside DHT sensor");
+    //Serial.println("Error: Failed to read humidity of outside DHT sensor");
   }
   else {
     hout += hout_offset;  // move here
-    Serial.print("Outside Himidity = ");
-    Serial.println(hout);
+    //Serial.print("Outside Himidity = ");
+    //Serial.println(hout);
   }
   return hout;
 }

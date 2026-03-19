@@ -4,12 +4,12 @@
 unsigned lastHz = 0;  // global or static
 
 void playFromBytes(uint8_t k_khz, uint8_t k_hundredths) {
-  Serial.println(k_khz);
-  Serial.println(k_hundredths);
+  //Serial.println(k_khz);
+  //Serial.println(k_hundredths);
   unsigned hz = static_cast<unsigned>(k_khz) * 1000u
               + static_cast<unsigned>(k_hundredths) * 10u;
   
-  Serial.println(hz);
+  //Serial.println(hz);
 
   // Stop if 0
   if (hz == 0u) {
@@ -26,7 +26,7 @@ void playFromBytes(uint8_t k_khz, uint8_t k_hundredths) {
 
   // Only update if frequency changed
   if (hz != lastHz) {
-    Serial.println(hz);
+    //Serial.println(hz);
     tone(BUZZER, hz);
     lastHz = hz;
   }
