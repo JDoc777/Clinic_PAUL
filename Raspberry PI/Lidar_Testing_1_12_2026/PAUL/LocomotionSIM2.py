@@ -25,9 +25,9 @@ SLOPE_LENGTH_M = 0.50
 # =========================
 # MOTION PARAMETERS (METERS)
 # =========================
-BOT_SPEED_MPS = 0.10
-BOT_ACCEL = 0.04
-BOT_DECEL = 0.08
+BOT_SPEED_MPS = 0.05
+BOT_ACCEL = 0.01
+BOT_DECEL = 0.04
 
 TIP_TURN_RATE = 0.06
 TIP_STOP_TOL = np.radians(1)
@@ -53,7 +53,7 @@ MAX_HEADING_JUMP_RAD = np.radians(120)
 # =========================
 # DEBUG / VISUALIZATION
 # =========================
-ENABLE_SECTION2_PLOT = False
+ENABLE_SECTION2_PLOT = True
 
 
 # =========================

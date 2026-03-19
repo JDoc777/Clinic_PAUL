@@ -7,7 +7,7 @@ import Payload
 
 # Fake values for testing
 fake_goal_x = 1  # Goal position (x)
-fake_goal_y = 3.5  # Goal position (y)
+fake_goal_y = 0  # Goal position (y)
 fake_fused_pose = {'x': 0.0, 'y': 0.0, 'theta': 0.0}  # Robot's current position and heading
 
 class ReverseKinematics:
@@ -107,12 +107,12 @@ class ReverseKinematics:
                 self.compute_linear_velocity(self.distance)
                 self.compute_angular_velocity(self.delta_angle)
                 self.calculate_wheel_speeds(self.v, self.omega, self.theta_target)
-                self.FL_PWM = self.convert_linear_to_motor_speed(self.FL)
+                """self.FL_PWM = self.convert_linear_to_motor_speed(self.FL)
                 self.FR_PWM = self.convert_linear_to_motor_speed(self.FR)
                 self.BL_PWM = self.convert_linear_to_motor_speed(self.BL)
-                self.BR_PWM = self.convert_linear_to_motor_speed(self.BR)
+                self.BR_PWM = self.convert_linear_to_motor_speed(self.BR)"""
 
-                Payload.set_motors(self.shared_data, self.FL_PWM, self.FR_PWM, self.BL_PWM, self.BR_PWM)
+                Payload.set_motors(self.shared_data, self.FL, self.FR, self.BL, self.BR)
 
 
             # Debugging: Print wheel speeds to verify they are updated

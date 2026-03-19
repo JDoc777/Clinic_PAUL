@@ -1,6 +1,7 @@
 import sys
 import time
 import signal
+import math
 
 import startup
 import testingUART
@@ -27,6 +28,9 @@ from PyQt5 import QtWidgets
 import Payload
 import Melodies
 
+import sec2_plot_real
+import sec3_control_real
+
 
 # ---------------- GLOBALS ----------------
 app = QApplication(sys.argv)
@@ -38,7 +42,66 @@ controller = None        # claw controller (for demo thread)
 run_wheels = False       # autonomous movement flag
 toggle_window = None     # control panel window
 claw_demo_thread = None  # handle to claw demo thread
-# ------------------------------------------
+sec2_plot = None         # handle to Section 2 plot
+
+import time
+import matplotlib.pyplot as plt
+
+def sine_wave_motor(t, amplitude=125, freq=0.5):
+    """
+    t = time (seconds)
+    amplitude = max motor command (±125)
+    freq = Hz (cycles per second)
+    """
+    return int(amplitude * math.sin(2 * math.pi * freq * t))
+
+def collect_encoder_data(encoder, duration=10.0):
+    start = time.time()
+
+    t_data = []
+    FL_data, FR_data, BL_data, BR_data = [], [], [], []
+
+    while time.time() - start < duration:
+        t = time.time() - start
+
+        FL = encoder.get_velocity('FL')
+        FR = encoder.get_velocity('FR')
+        BL = encoder.get_velocity('RL')
+        BR = encoder.get_velocity('RR')
+
+        t_data.append(t)
+        FL_data.append(FL)
+        FR_data.append(FR)
+        BL_data.append(BL)
+        BR_data.append(BR)
+
+        time.sleep(0.01)
+
+    return t_data, FL_data, FR_data, BL_data, BR_data
+
+
+def plot_static(t, FL, FR, BL, BR, target):
+    wheels = {
+        "FL": FL,
+        "FR": FR,
+        "BR": BL,
+        "BL": BR
+    }
+
+    for name, data in wheels.items():
+        plt.figure()
+
+        plt.plot(t, data, label=f"{name} velocity")
+        plt.axhline(target, linestyle='--', label="Target")
+
+        plt.xlabel("Time (s)")
+        plt.ylabel("Velocity (m/s)")
+        plt.title(f"{name} Wheel PID Response")
+
+        plt.legend()
+        plt.grid()
+
+    plt.show()
 
 class ManualControlPad(QtWidgets.QWidget):
     def __init__(self):
@@ -344,6 +407,9 @@ def main():
 
     # ---------- Start all subsystems ----------
     processor = encoder_processing.create_and_run(shared_data, poll=0.05)
+    #shared_data.encoder_processor = processor
+
+    
 
     sonar_proc = sonar_processing.SonarProcessor(shared_data, poll=0.05)
 
@@ -387,7 +453,7 @@ def main():
         print("\n[Startup] Skipping Wheels (run_wheels is False at startup)")
 
     # Live pg_plot window
-    grid = obstacle_grid_processing.create_and_run(shared_data, poll=0.005)
+    grid = obstacle_grid_processing.create_and_run(shared_data, poll=0.05)
 
     lidar_proc = lidar_processing.LidarProcessor(shared_data, debug=True)
 
@@ -398,6 +464,41 @@ def main():
 
     grid.lidar_map = lidar_map
     grid.lidar_obs = lidar_obs
+
+    # give system time to stabilize
+    #time.sleep(2)
+
+    #Payload.set_motors(shared_data, 125, 125, 125, 125)  # Ensure motors are stopped at startup
+
+    """start_time = time.time()
+
+    while running_event.is_set():
+
+        t = time.time() - start_time
+
+        speed = sine_wave_motor(t, amplitude=125, freq=0.33) 
+
+        # send same signal to all wheels
+        Payload.set_motors(shared_data, speed, speed, speed, speed)
+
+        time.sleep(0.2)  # ~50 Hz update rate"""
+
+    target_speed = 1.0  # whatever you're commanding
+
+    #time.sleep(5)
+
+    #processor.plot_ticks()
+
+   #t, FL, FR, BL, BR = collect_encoder_data(processor, duration=10.0)
+    #plot_static(t, FL, FR, BL, BR, target_speed)
+
+    #reverse_kinematics.create_and_run(shared_data, poll=0.02)
+
+    sec2_plot = sec2_plot_real.create_and_run(grid, poll=0.1)
+
+    sec3 = sec3_control_real.create_and_run(sec2_plot, poll=0.02)
+
+    #Payload.set_motors(shared_data, 1, 1, 1, 1)  # Ensure motors are stopped at startup
 
 
 
@@ -426,7 +527,7 @@ def main():
 
 
     # ----- MAIN LIVE PLOT -----
-    pg_live_plot_loop(grid, servo_controller=controller)
+    pg_live_plot_loop(grid, sec3=sec3, servo_controller=controller)
     # ------------------------------------------
 
     # ---------- MAIN LOOP ----------

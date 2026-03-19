@@ -15,6 +15,8 @@ from reverse_kinematics import ReverseKinematics
 from lidar_local_map import LidarLocalMap
 from lidar_obstacle_map import LidarObstacleMap
 
+from LocomotionSIM2 import MAP_H_M, MAP_W_M, build_section2_segmented_path_from_smooth_path, slope_intersection
+
 
 
 # Set the background color to white
@@ -22,7 +24,7 @@ pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')  # Set foreground (text, grid lines) to black
 
 
-def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
+def pg_live_plot_loop(grid, sec3=None, update_interval=10, servo_controller=None):
 
     def world_to_grid_coords(grid, x_world, y_world):
         ix = int((x_world - grid.x_origin) / grid.cell_size)
@@ -41,21 +43,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     win = pg.GraphicsLayoutWidget(show=True, title="Occupancy Grid, Log-Odds Grid, Fused Robot Position & Servo Angles")
     win.resize(1800, 800)
 
-    # Occupancy Grid Plot (top-left)
-    plot_grid = win.addPlot(title="Occupancy Grid")
-    plot_grid.setAspectLocked(True)
-    gridDiv = grid.grid.shape[0]
-    gridSize = gridDiv * grid.cell_size
-    plot_grid.setXRange(0, grid.grid.shape[1])
-    plot_grid.setYRange(0, grid.grid.shape[0])
-    plot_grid.showGrid(x=True, y=True, alpha=0.3)
-    img = pg.ImageItem()
-    plot_grid.addItem(img)
-    robot_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
-    plot_grid.addItem(robot_dot)
-    lut = np.zeros((256, 3), dtype=np.ubyte)
-    lut[:128] = [0, 255, 0]    # green for free
-    lut[128:] = [255, 0, 0]    # red for occupied
 
     # Log-Odds Grid Plot (top-right)
     plot_logodds = win.addPlot(title="Log-Odds Grid")
@@ -109,28 +96,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_corrected.addItem(corrected_legend)
     corrected_legend.setPos(2.2, -0.5)  # Adjust position as needed
 
-    # Add a new plot for robot movement toward the goal (top-right)
-    plot_robot_to_goal = win.addPlot(title="Robot Movement to Goal")
-    plot_robot_to_goal.setAspectLocked(True)
-    plot_robot_to_goal.setXRange(0, grid.grid.shape[1])
-    plot_robot_to_goal.setYRange(0, grid.grid.shape[0])
-    plot_robot_to_goal.showGrid(x=True, y=True, alpha=0.3)
-
-    # Add the robot's position as a green dot
-    robot_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 255, 0, 200))  # Green dot
-    plot_robot_to_goal.addItem(robot_position_dot)
-
-    # Add the goal position as a red dot
-    goal_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(255, 0, 0, 200))  # Red dot
-    plot_robot_to_goal.addItem(goal_position_dot)
-
-    # Add a trajectory line to show the robot's gradual movement
-    robot_trajectory_line = pg.PlotDataItem(pen=pg.mkPen('g', width=2))  # Green line
-    plot_robot_to_goal.addItem(robot_trajectory_line)
-
-    # Initialize trajectory data
-    robot_trajectory_x = []
-    robot_trajectory_y = []
 
     # Move to the next row for the remaining bottom plots
     win.nextRow()
@@ -165,38 +130,12 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     for line in sonar_angle_lines:
         plot_traj.addItem(line)
 
-    # Servo Angles Plot (bottom-right)
-    plot_servo = win.addPlot(title="Servo Angles")
-    plot_servo.setYRange(0, 180)  # Servo angles range from 0 to 180 degrees
-    plot_servo.setXRange(-0.5, 4.5)  # X-axis for 5 servos
-    plot_servo.showGrid(x=True, y=True, alpha=0.3)
 
-    # Define colors for each servo
-    servo_colors = ['r', 'g', 'b', 'y', 'm']  # Red, Green, Blue, Yellow, Magenta
-    servo_bars = pg.BarGraphItem(x=np.arange(5), height=[0]*5, width=0.5, brushes=[pg.mkBrush(color) for color in servo_colors])
-    plot_servo.addItem(servo_bars)
 
-    # Add servo names to the X-axis
-    servo_names = [f"Servo {i+1}" for i in range(5)]
-    axis = plot_servo.getAxis('bottom')
-    axis.setTicks([[(i, name) for i, name in enumerate(servo_names)]])
 
-    # Add dynamic labels for degrees at the top of each bar
-    degree_labels = []
-    for i in range(5):
-        label = pg.TextItem(text="", anchor=(0.5, -0.5), color='w')  # Anchor below the text
-        plot_servo.addItem(label)
-        degree_labels.append(label)
 
-    # Claw Arm Visualization (bottom-center)
-    plot_claw = win.addPlot(title="Claw Arm Visualization")
-    plot_claw.setAspectLocked(True)
-    plot_claw.setXRange(-40, 40)  # Adjust range as needed
-    plot_claw.setYRange(-40, 40)  # Adjust range as needed
-    plot_claw.showGrid(x=True, y=True, alpha=0.3)
 
-    # Define colors for each servo
-    servo_colors = ['g', 'b', 'y']  # Green, Blue, Yellow (for servos 2 to 4)
+
 
     # --- Wheel Speed Bars ---
     plot_wheels = win.addPlot(title="Wheel Speeds")
@@ -224,20 +163,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     axis.setTicks([[(i, wheel_names[i]) for i in range(4)]])
 
 
-    # Create lines for each arm segment with corresponding colors
-    arm_lines = [pg.PlotDataItem(pen=pg.mkPen(color, width=2)) for color in servo_colors]
-    for line in arm_lines:
-        plot_claw.addItem(line)
 
-    # Update claw color to magenta ('m')
-    claw_line_1 = pg.PlotDataItem(pen=pg.mkPen('m', width=2))  # First claw line
-    claw_line_2 = pg.PlotDataItem(pen=pg.mkPen('m', width=2))  # Second claw line
-    gap_line_1 = pg.PlotDataItem(pen=pg.mkPen('m', width=2))  # Gap (claw extension) for first claw
-    gap_line_2 = pg.PlotDataItem(pen=pg.mkPen('m', width=2))  # Gap (claw extension) for second claw
-    plot_claw.addItem(claw_line_1)
-    plot_claw.addItem(claw_line_2)
-    plot_claw.addItem(gap_line_1)
-    plot_claw.addItem(gap_line_2)
 
     # Binary Map Plot with A* Path
     plot_binary = win.addPlot(title="Binary Map with A* Path")
@@ -301,17 +227,80 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     )
     plot_lidar.addItem(lidar_robot_dot)
 
-        # --- LiDAR Occupancy Grid Plot ---
-    plot_lidar_grid = win.addPlot(title="LiDAR Occupancy Grid")
-    plot_lidar_grid.setAspectLocked(True)
-    plot_lidar_grid.setXRange(0, grid.grid.shape[1])
-    plot_lidar_grid.setYRange(0, grid.grid.shape[0])
-    plot_lidar_grid.showGrid(x=True, y=True, alpha=0.3)
+    # ===== SECTION 3: STATE MACHINE (MID RIGHT) =====
+    plot_sec3 = win.addPlot(title="Section 3: State Machine")
+    plot_sec3.setXRange(0, MAP_W_M)
+    plot_sec3.setYRange(0, MAP_H_M)
+    plot_sec3.setAspectLocked(True)
+    plot_sec3.showGrid(x=True, y=True, alpha=0.2)
 
-    lidar_grid_img = pg.ImageItem()
-    plot_lidar_grid.addItem(lidar_grid_img)
+    # robot dot
+    sec3_robot = plot_sec3.plot([], [], pen=None, symbol='o', symbolBrush='r', symbolSize=10)
+
+    # heading line
+    sec3_heading = plot_sec3.plot([], [], pen=pg.mkPen('y', width=3))
+
+    sec3_path = plot_sec3.plot([], [], pen=pg.mkPen('m', width=3))
+
+    # text
+    sec3_text = pg.TextItem("", anchor=(0, 0), color='k')
+    plot_sec3.addItem(sec3_text)
+
+
+
+    win.nextRow()  # Move to the next row for the Section 2 plots
+
+    plot_sec2_analysis = win.addPlot(title="Section 2: Path Analysis")
+    plot_sec2_analysis.setXRange(0, 5)
+    plot_sec2_analysis.setYRange(0, 5)
+    plot_sec2_analysis.setAspectLocked(True)
+    plot_sec2_analysis.showGrid(x=True, y=True, alpha=0.2)
+
+
+    analysis_smooth = plot_sec2_analysis.plot(pen=pg.mkPen('r', width=3))
+
+    analysis_blue = pg.ScatterPlotItem(size=10, brush='b')
+    analysis_orange = pg.ScatterPlotItem(size=10, brush=(255, 165, 0))
+    analysis_purple = pg.ScatterPlotItem(size=10, brush=(128, 0, 128))
+
+    plot_sec2_analysis.addItem(analysis_blue)
+    plot_sec2_analysis.addItem(analysis_orange)
+    plot_sec2_analysis.addItem(analysis_purple)
+
+    analysis_labels = []
+
+    plot_sec2_turn = win.addPlot(title="Section 2: Turning Point Calculation")
+    plot_sec2_turn.setXRange(0, 5)
+    plot_sec2_turn.setYRange(0, 5)
+    plot_sec2_turn.setAspectLocked(True)
+    plot_sec2_turn.showGrid(x=True, y=True, alpha=0.2)
+
+    turn_smooth = plot_sec2_turn.plot(pen=pg.mkPen('r', width=3))
+    turn_items = []   # IMPORTANT: store ALL dynamic items
+
+    plot_sec2_modified = win.addPlot(title="Section 2: Modified Path")
+    plot_sec2_modified.setXRange(0, 5)
+    plot_sec2_modified.setYRange(0, 5)
+    plot_sec2_modified.setAspectLocked(True)
+    plot_sec2_modified.showGrid(x=True, y=True, alpha=0.2)
+
+    modified_curve = plot_sec2_modified.plot(pen=pg.mkPen('b', width=3))
+    modified_items = []
+
+    plot_sec2_mode = win.addPlot(title="Section 2: Path Segmentation")
+    plot_sec2_mode.setXRange(0, 5)
+    plot_sec2_mode.setYRange(0, 5)
+    plot_sec2_mode.setAspectLocked(True)
+    plot_sec2_mode.showGrid(x=True, y=True, alpha=0.2)
+
+    mode_curve = plot_sec2_mode.plot(pen=pg.mkPen('g', width=3))
+    mode_items = []
 
     
+
+    
+
+   
 
 
 
@@ -319,13 +308,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
 
 
     def update():
-        # Occupancy grid
-        grid_disp = np.zeros_like(grid.grid, dtype=np.uint8)
-        grid_disp[grid.grid <= 0] = 64   # green
-        grid_disp[grid.grid > 0] = 192   # red
-        img.setImage(np.flipud(grid_disp.T), levels=(0, 255), lut=lut)
         QtCore.QCoreApplication.processEvents()
-        img.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
 
         # Log-odds grid visualization
         logodds_disp = np.clip(grid.grid, -10, 10)
@@ -351,7 +334,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         y_pos = fused_pose['y']
         robot_ix, robot_iy = world_to_grid_coords(grid, x_pos, y_pos)
 
-        robot_dot.setData([robot_ix], [robot_iy])
+        #robot_dot.setData([robot_ix], [robot_iy])
         robot_dot_logodds.setData([robot_ix], [robot_iy])
         robot_dot_corrected.setData([robot_ix], [robot_iy])
 
@@ -418,21 +401,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         except Exception:
             sonar_tip_scatter.setData([])
 
-        # Update servo angles
-        if servo_controller:
-
-            #servo_controller.current_positions[0] = 45  # Set Servo 1 starting angle to 45 degrees
-            servo_angles = servo_controller.current_positions
-            servo_bars.setOpts(height=servo_angles)  # Update bar heights with servo angles
-            for i, label in enumerate(degree_labels):
-                label.setText(f"{servo_angles[i]:.1f}°")  # Update label with angle
-                if servo_angles[i] < 20:  # If the bar is small, position the label above the bar
-                    label.setAnchor((0.5, 1.5))  # Flip anchor to appear above
-                    label.setPos(i, servo_angles[i] + 5)  # Position label above the bar
-                else:  # Otherwise, position the label inside the bar
-                    label.setAnchor((0.5, -0.5))  # Anchor below the text
-                    label.setPos(i, servo_angles[i] - 10)  # Position label inside the bar
-        
+    
                 # ---- Wheel Speed Plot ----
         try:
             rk = grid.shared.reverse_kinematics
@@ -452,69 +421,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         except Exception as e:
             #print("Wheel plot error:", e)
             pass
-
-
-        # Update claw arm visualization
-        if servo_controller:
-            # Get the adjusted positions for visualization
-            visual_positions = servo_controller.get_visual_positions()
-
-            # Get the angles of the arm servos (servo 2 to servo 4)
-            angles = [np.radians(visual_positions[i]) for i in range(1, 4)]  # Convert to radians
-
-            # Adjust the 4th servo (3rd arm) so 90 degrees is inline with the previous arm
-            angles[2] -= np.pi / 2  # Subtract 90 degrees (π/2 radians)
-
-            # Lengths of the arm segments (in cm)
-            lengths = [12, 10, 10]  # Updated lengths for each segment
-
-            # Initialize the base position
-            x_positions = [0]
-            y_positions = [0]
-
-            # Calculate the positions of the arm segments
-            cumulative_angle = 0
-            for i in range(3):  # For servos 2 to 4
-                cumulative_angle += angles[i]
-                x_positions.append(x_positions[-1] + lengths[i] * np.cos(cumulative_angle))
-                y_positions.append(y_positions[-1] + lengths[i] * np.sin(cumulative_angle))
-
-            # Update the lines to represent the arm segments
-            for i, line in enumerate(arm_lines):
-                line.setData([x_positions[i], x_positions[i + 1]], [y_positions[i], y_positions[i + 1]])
-
-            # Calculate and update the claw lines
-            claw_base_x = x_positions[-1]
-            claw_base_y = y_positions[-1]
-            claw_angle = np.radians(servo_controller.current_positions[4])  # Servo 5 angle
-            claw_length = 8  # Length of each claw segment
-            claw_extension = 2  # Gap (claw extension) in cm
-
-            # Adjust claw angles based on servo 5 position
-            # At 0°, the lines touch each other; at 180°, the angle between them is 90°.
-            claw_opening_angle = np.radians(servo_controller.current_positions[4]) / 2  # Half of the servo angle
-
-            # Rotate the entire claw 90 degrees clockwise by adding -π/2 to the cumulative angle
-            cumulative_angle -= np.pi / 2
-
-            # Calculate the extended base of the claw
-            extended_claw_base_x = claw_base_x + claw_extension * np.cos(cumulative_angle)
-            extended_claw_base_y = claw_base_y + claw_extension * np.sin(cumulative_angle)
-
-            # Draw the gap (claw extension) as magenta lines
-            gap_line_1.setData([claw_base_x, extended_claw_base_x], [claw_base_y, extended_claw_base_y])
-            gap_line_2.setData([claw_base_x, extended_claw_base_x], [claw_base_y, extended_claw_base_y])
-
-            # First claw line (rotated counterclockwise)
-            claw_1_x = extended_claw_base_x + claw_length * np.cos(cumulative_angle + claw_opening_angle)
-            claw_1_y = extended_claw_base_y + claw_length * np.sin(cumulative_angle + claw_opening_angle)
-            claw_line_1.setData([extended_claw_base_x, claw_1_x], [extended_claw_base_y, claw_1_y])
-
-            # Second claw line (rotated clockwise)
-            claw_2_x = extended_claw_base_x + claw_length * np.cos(cumulative_angle - claw_opening_angle)
-            claw_2_y = extended_claw_base_y + claw_length * np.sin(cumulative_angle - claw_opening_angle)
-            claw_line_2.setData([extended_claw_base_x, claw_2_x], [extended_claw_base_y, claw_2_y])
-
             
 
         # Binary map visualization
@@ -549,34 +455,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             astar_goal_dot.setData([], [])
             astar_raw_path.setData([], [])
             astar_smooth_path.setData([], [])
-
-        # Update the robot's position and goal on the new plot
-        try:
-            # Get the robot's current position
-            current_x = fused_pose['x']
-            current_y = fused_pose['y']
-
-            # Get the goal position
-            goal_x, goal_y = grid.goal_x, grid.goal_y
-
-            # Update the robot's position dot
-            robot_position_dot.setData([current_x], [current_y])
-
-            # Update the goal position dot
-            goal_position_dot.setData([goal_x], [goal_y])
-
-            # Append the robot's position to the trajectory if it has moved
-            if not robot_trajectory_x or (abs(current_x - robot_trajectory_x[-1]) > 1e-4 or abs(current_y - robot_trajectory_y[-1]) > 1e-4):
-                robot_trajectory_x.append(current_x)
-                robot_trajectory_y.append(current_y)
-
-            # Update the trajectory line
-            robot_trajectory_line.setData(robot_trajectory_x, robot_trajectory_y)
-        except AttributeError:
-            # If data is not available yet, clear the plot
-            robot_position_dot.setData([], [])
-            goal_position_dot.setData([], [])
-            robot_trajectory_line.setData([], [])
         
             # ---------------- LiDAR Scan (Robot Frame) ----------------
         '''try:
@@ -633,21 +511,360 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         except Exception:
             lidar_robot_dot.setData([], [])
 
+
+
+                # -------- Section 2 DATA COMPUTATION --------
+        sec2_data = None
+
         try:
-            lidar_grid = grid.grid   # same grid for now
+            smooth_path = getattr(grid, "current_path_smooth", None)
+            raw_path = getattr(grid, "current_path_world", None)
 
-            # Normalize log-odds to grayscale
-            disp = np.clip(lidar_grid, -5, 5)
-            lidar_img = ((disp + 5) * (255.0 / 10)).astype(np.uint8)
+            if smooth_path is not None and len(smooth_path) >= 3:
 
-            lidar_grid_img.setImage(np.flipud(lidar_img.T), levels=(0, 255))
-            lidar_grid_img.setRect(
-                QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0])
-            )
+                smooth_np = np.asarray(smooth_path, dtype=float)
 
-        except Exception:
+                if raw_path is None:
+                    raw_np = smooth_np
+                else:
+                    raw_np = np.asarray(raw_path, dtype=float)
+
+                sec2_data = build_section2_segmented_path_from_smooth_path(
+                    smooth_path_m=smooth_np,
+                    raw_path_m=raw_np,
+                    grid=np.copy(grid.grid),
+                    start_m=smooth_np[0],
+                    goal_m=smooth_np[-1]
+                )
+
+        except Exception as e:
+            print("[SEC2 compute error]:", e)
+
+        # -------- Section 2: Path Analysis --------
+        raw_np = None
+        try:
+
+            # clear previous radius labels
+            for lbl in analysis_labels:
+                plot_sec2_analysis.removeItem(lbl)
+            analysis_labels.clear()
+
+            # smooth path (red)
+            if sec2_data is not None and "smooth_path" in sec2_data:
+                sp = np.asarray(sec2_data["smooth_path"], dtype=float)
+                analysis_smooth.setData(sp[:, 0], sp[:, 1])
+            else:
+                analysis_smooth.setData([], [])
+
+            blue_pts = []
+            orange_pts = []
+            purple_pts = []
+
+            if sec2_data is not None and "turning_points" in sec2_data:
+
+                for tp in sec2_data["turning_points"].values():
+
+                    start_point = tp["start"]["point"]
+                    start_R = tp["start"]["R"]
+                    intersection = tp["start"]["intersection"]
+
+                    blue_pts.append({
+                        "pos": (float(start_point[0]), float(start_point[1]))
+                    })
+
+                    orange_pts.append({
+                        "pos": (float(intersection[0]), float(intersection[1]))
+                    })
+
+                    label = pg.TextItem(
+                        text=f"R={start_R:.2f}",
+                        color='k',
+                        anchor=(0, 1)
+                    )
+                    label.setPos(
+                        float(start_point[0] + 0.08),
+                        float(start_point[1] + 0.08)
+                    )
+                    plot_sec2_analysis.addItem(label)
+                    analysis_labels.append(label)
+
+                    if "end" in tp:
+                        end_point = tp["end"]["point"]
+                        purple_pts.append({
+                            "pos": (float(end_point[0]), float(end_point[1]))
+                        })
+
+            analysis_blue.setData(spots=blue_pts)
+            analysis_orange.setData(spots=orange_pts)
+            analysis_purple.setData(spots=purple_pts)
+
+        except Exception as e:
+            print("[SEC2 path analysis error]:", e)
+
+            analysis_smooth.setData([], [])
+            analysis_blue.setData([])
+            analysis_orange.setData([])
+            analysis_purple.setData([])
+
+        # -------- Section 2: Turning Point Calculation --------
+        try:
+
+            # clear previous items (IMPORTANT)
+            for item in turn_items:
+                plot_sec2_turn.removeItem(item)
+            turn_items.clear()
+
+            if sec2_data is not None:
+
+                sp = np.asarray(sec2_data["smooth_path"], dtype=float)
+                turn_smooth.setData(sp[:, 0], sp[:, 1])
+
+                color_list = [
+                    (31,119,180),(255,127,14),(44,160,44),(214,39,40),
+                    (148,103,189),(140,86,75),(227,119,194),(127,127,127)
+                ]
+
+                slope_len = 0.5
+
+                for idx, (_, tp) in enumerate(sec2_data["turning_points"].items()):
+
+                    color = color_list[idx % len(color_list)]
+                    pen = pg.mkPen(color, width=2)
+
+                    # -------- START POINT --------
+                    start_pt = tp["start"]["point"]
+                    start_slope = tp["start"]["slope"]
+                    x0, y0 = start_pt
+
+                    pt = pg.ScatterPlotItem(
+                        [x0], [y0],
+                        size=10,
+                        brush=color
+                    )
+                    plot_sec2_turn.addItem(pt)
+                    turn_items.append(pt)
+
+                    # START SLOPE LINE
+                    if np.isinf(start_slope):
+                        x = [x0, x0]
+                        y = [y0, y0 + slope_len]
+                    else:
+                        dx = slope_len
+                        dy = start_slope * dx
+                        x = [x0, x0 + dx]
+                        y = [y0, y0 + dy]
+
+                    line = pg.PlotDataItem(x, y, pen=pen)
+                    plot_sec2_turn.addItem(line)
+                    turn_items.append(line)
+
+                    # -------- END POINT --------
+                    if "end" in tp:
+
+                        end_pt = tp["end"]["point"]
+                        end_slope = tp["end"]["slope"]
+                        x1, y1 = end_pt
+
+                        pt2 = pg.ScatterPlotItem(
+                            [x1], [y1],
+                            size=10,
+                            brush=color
+                        )
+                        plot_sec2_turn.addItem(pt2)
+                        turn_items.append(pt2)
+
+                        # END SLOPE (BACKWARDS!)
+                        if np.isinf(end_slope):
+                            x = [x1, x1]
+                            y = [y1, y1 - slope_len]
+                        else:
+                            dx = -slope_len
+                            dy = end_slope * dx
+                            x = [x1, x1 + dx]
+                            y = [y1, y1 + dy]
+
+                        line2 = pg.PlotDataItem(x, y, pen=pen)
+                        plot_sec2_turn.addItem(line2)
+                        turn_items.append(line2)
+
+                        # -------- INTERSECTION (YELLOW) --------
+                        inter = slope_intersection(
+                            start_pt, start_slope,
+                            end_pt, end_slope
+                        )
+
+                        if inter is not None:
+                            ix, iy = inter
+
+                            ipt = pg.ScatterPlotItem(
+                                [ix], [iy],
+                                size=9,
+                                brush='y'
+                            )
+                            plot_sec2_turn.addItem(ipt)
+                            turn_items.append(ipt)
+
+            else:
+                turn_smooth.setData([], [])
+
+        except Exception as e:
+            print("[SEC2 turn error]:", e)
+            turn_smooth.setData([], [])
+
+    # -------- Section 2: Modified Path --------
+        try:
+
+            # clear previous items
+            for item in modified_items:
+                plot_sec2_modified.removeItem(item)
+            modified_items.clear()
+
+            if sec2_data is not None and "modified_path" in sec2_data:
+
+                mp = np.asarray(sec2_data["modified_path"], dtype=float)
+                modified_curve.setData(mp[:, 0], mp[:, 1])
+
+                for tp in sec2_data["turning_points"].values():
+
+                    if "end" not in tp:
+                        continue
+
+                    start_pt = tp["start"]["point"]
+                    start_slope = tp["start"]["slope"]
+
+                    end_pt = tp["end"]["point"]
+                    end_slope = tp["end"]["slope"]
+
+                    inter = slope_intersection(
+                        start_pt, start_slope,
+                        end_pt, end_slope
+                    )
+
+                    if inter is None:
+                        continue
+
+                    ix, iy = inter
+
+                    pt = pg.ScatterPlotItem(
+                        [ix], [iy],
+                        size=10,
+                        brush='y'
+                    )
+                    plot_sec2_modified.addItem(pt)
+                    modified_items.append(pt)
+
+            else:
+                modified_curve.setData([], [])
+
+        except Exception as e:
+            print("[SEC2 modified error]:", e)
+            modified_curve.setData([], [])
+
+    # -------- Section 2: Path Segmentation --------
+        try:
+
+            # clear previous items
+            for item in mode_items:
+                plot_sec2_mode.removeItem(item)
+            mode_items.clear()
+
+            if sec2_data is not None and "modified_path" in sec2_data:
+
+                mp = np.asarray(sec2_data["modified_path"], dtype=float)
+                mode_curve.setData(mp[:, 0], mp[:, 1])
+
+                last_tip_index = 0
+                tip_i = 1
+
+                for inter in sec2_data["turn_intersections"]:
+
+                    if len(mp) == 0:
+                        break
+
+                    distances = np.linalg.norm(mp - inter, axis=1)
+                    tip_index = int(np.argmin(distances))
+
+                    mid_index = (last_tip_index + tip_index) // 2
+                    p_mid = mp[mid_index]
+
+                    # ACK label (green)
+                    ack = pg.TextItem("ACK", color=(0, 100, 0))
+                    ack.setPos(float(p_mid[0]), float(p_mid[1]))
+                    plot_sec2_mode.addItem(ack)
+                    mode_items.append(ack)
+
+                    # TIP label (orange)
+                    tip_label = pg.TextItem(f"TIP{tip_i}", color=(255, 140, 0))
+                    tip_label.setPos(float(inter[0]), float(inter[1] + 0.08))
+                    plot_sec2_mode.addItem(tip_label)
+                    mode_items.append(tip_label)
+
+                    # TIP point
+                    tip_pt = pg.ScatterPlotItem(
+                        [inter[0]], [inter[1]],
+                        size=11,
+                        brush=(255, 165, 0)
+                    )
+                    plot_sec2_mode.addItem(tip_pt)
+                    mode_items.append(tip_pt)
+
+                    last_tip_index = tip_index
+                    tip_i += 1
+
+                # final ACK
+                if len(mp) > 0:
+                    mid_index = (last_tip_index + len(mp) - 1) // 2
+                    p_mid = mp[mid_index]
+
+                    ack = pg.TextItem("ACK", color=(0, 100, 0))
+                    ack.setPos(float(p_mid[0]), float(p_mid[1]))
+                    plot_sec2_mode.addItem(ack)
+                    mode_items.append(ack)
+
+            else:
+                mode_curve.setData([], [])
+
+        except Exception as e:
+            print("[SEC2 mode error]:", e)
+            mode_curve.setData([], [])
+        
+        # ===== SECTION 3 VISUAL =====
+        try:
+            if sec3 is not None:
+                # draw path (same as segmentation)
+                if sec2_data is not None and "modified_path" in sec2_data:
+                    mp = np.asarray(sec2_data["modified_path"], dtype=float)
+                    sec3_path.setData(mp[:, 0], mp[:, 1])
+                else:
+                    sec3_path.setData([], [])
+
+                rx, ry = sec3.render_pos
+                theta = sec3.render_theta
+
+                # robot dot
+                sec3_robot.setData([rx], [ry])
+
+                # heading line
+                hx = rx + 0.05 * np.cos(theta)
+                hy = ry + 0.05 * np.sin(theta)
+                sec3_heading.setData([rx, hx], [ry, hy])
+
+                # text (same style as SIM2)
+                sec3_text.setText(sec3.render_text)
+                sec3_text.setPos(rx + 0.1, ry + 0.1)
+
+        except Exception as e:
+            # don't crash GUI
             pass
 
+        
+
+        
+            
+
+        
+
+               
 
         
     

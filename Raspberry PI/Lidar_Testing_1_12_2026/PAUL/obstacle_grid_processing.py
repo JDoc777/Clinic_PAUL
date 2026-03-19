@@ -36,7 +36,7 @@ class ObstacleGrid:
         self.dx = 0.0
         self.dy = 0.0
         self.delta_s = 0.0
-        self.goal_x = 3.0
+        self.goal_x = 1.0
         self.goal_y = 0.0
         self.cell_size = 0.05  # meters
         self.raw_x = 0.0
