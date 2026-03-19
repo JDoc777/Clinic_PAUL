@@ -70,7 +70,7 @@ static void applyCommand(uint8_t flags,
                          const char* text, uint8_t text_len,
                          uint8_t buzzerInt, uint8_t buzzerDec)
 {
-  Serial.println(flags);
+  //Serial.println(flags);
   bool flag0_LED0       = (flags>>0) & 1;       //flags & (1 << 0); // bit 0
   bool flag1_LED1       = (flags>>1) & 1;       //flags & (1 << 1); // bit 1
   bool flag2_Relay      = (flags>>2) & 1;       //flags & (1 << 2); // bit 2
@@ -82,70 +82,70 @@ static void applyCommand(uint8_t flags,
 
   if (flag0_LED0) {
     digitalWrite(LED_Pi, HIGH);
-    Serial.println("Pi has turned sucessfully");
+    //Serial.println("Pi has turned sucessfully");
   } else {
     digitalWrite(LED_Pi, LOW);
-    Serial.println("Pi has not turned on sucessfully");
+    //Serial.println("Pi has not turned on sucessfully");
   }
 
   if (flag1_LED1) {
     digitalWrite(LED_Arduino, HIGH);
-    Serial.println("Arduino has connected sucessfully");
+    //Serial.println("Arduino has connected sucessfully");
   } else {
     digitalWrite(LED_Arduino, LOW);
-    Serial.println("Arduino has not connected sucessfully");
+    //Serial.println("Arduino has not connected sucessfully");
   }
 
   if (flag2_Relay) {
     digitalWrite(Relay_motors, HIGH);
-    Serial.println("Relay ON");
+    //Serial.println("Relay ON");
   } else {
-    Serial.println("!!!!!!!!!!!!!!!");
+    //Serial.println("!!!!!!!!!!!!!!!");
     digitalWrite(Relay_motors, LOW);
-    Serial.println("Relay OFF");
+    //Serial.println("Relay OFF");
   }
 
 
   if (flag3_Handshake) {
 
-    Serial.println("Handshake was successful!");
+    //Serial.println("Handshake was successful!");
   }  else {
-    Serial.println("Handshake was not successful!");
+    //Serial.println("Handshake was not successful!");
   }
 
   if (flag4_reset) {
-    Serial.println("RESET FLAG TRUE — restarting...");
-    Serial.println(flag4_reset);
+    //Serial.println("RESET FLAG TRUE — restarting...");
+    //Serial.println(flag4_reset);
     delay(100);
     NVIC_SystemReset();
   }
   
   if (flag5_Buzzer) {
-    Serial.println("BUZZER flag is set to TRUE");
-    Serial.println(buzzerInt);
-    Serial.println(buzzerDec);
+    //Serial.println("BUZZER flag is set to TRUE");
+    //Serial.println(buzzerInt);
+    //Serial.println(buzzerDec);
     playFromBytes(buzzerInt, buzzerDec);            // apply buzzer
     
     
   } else {
-    Serial.println("BUZZER flag is set to FALSE");
+    //Serial.println("BUZZER flag is set to FALSE");
     playFromBytes(0, 0);                            // buzzer set to 0
   }
 
   if (flag6_Fan1) {
     digitalWrite(Fan1, HIGH);
-    Serial.println("This flag is set to TRUE");
+    //Serial.println("This flag is set to TRUE");
   } else {
     digitalWrite(Fan1, LOW);
-    Serial.println("This flag is set to FALSE");
+    //Serial.println("This flag is set to FALSE");
   }
 
   if (flag7_Fan2) {
     digitalWrite(Fan2, HIGH);
-    Serial.println("This flag is set to TRUE");
+    //Serial.println("This flag is set to TRUE");
   } else {
     digitalWrite(Fan2, LOW);
-    Serial.println("This flag is set to FALSE");
+    //Serial.println("This flag is set to FALSE");
   }
 
   // dt = 0.01 seconds for 10 ms
@@ -156,10 +156,10 @@ static void applyCommand(uint8_t flags,
   int rl = m[2];
   int rr = m[3];
 
-  Serial.print("FL: "); Serial.print(fl);
-  Serial.print("  FR: "); Serial.print(fr);
-  Serial.print("  RL: "); Serial.print(rl);
-  Serial.print("  RR: "); Serial.println(rr);   // println ends the line
+  //Serial.print("FL: "); Serial.print(fl);
+  //Serial.print("  FR: "); Serial.print(fr);
+  //Serial.print("  RL: "); Serial.print(rl);
+  //Serial.print("  RR: "); Serial.println(rr);   // println ends the line
 
   mecanumDrive(fl, fr, rl, rr);
 
@@ -169,11 +169,11 @@ static void applyCommand(uint8_t flags,
   int WristP = s[3];
   int Claw = s[4];
 
-  Serial.println(Base);
-  Serial.println(Shoulder);
-  Serial.println(Elbow);
-  Serial.println(WristP);
-  Serial.println(Claw);
+  //Serial.println(Base);
+  //Serial.println(Shoulder);
+  //Serial.println(Elbow);
+  //Serial.println(WristP);
+  //Serial.println(Claw);
 
   setArms(Base, Shoulder, Elbow, WristP, Claw);
 
@@ -207,9 +207,9 @@ static void applyCommand(uint8_t flags,
 static void handleHandshakeByte(uint8_t b) {
   if (b == '\n' || b == '\r') {
     lineBuf[lineLen] = '\0';
-    Serial.print("Got handshake line: '");
-    Serial.print(lineBuf);
-    Serial.println("'");
+    //Serial.print("Got handshake line: '");
+    //Serial.print(lineBuf);
+    //Serial.println("'");
     if (lineLen > 0) {
       for (uint8_t i = 0; i < lineLen; ++i) {
         if (lineBuf[i] >= 'A' && lineBuf[i] <= 'Z') lineBuf[i] = lineBuf[i] - 'A' + 'a';
@@ -218,7 +218,7 @@ static void handleHandshakeByte(uint8_t b) {
         UART_LINK.write((const uint8_t*)HS_ACK, strlen(HS_ACK));
         UART_LINK.write('\n');
         hs = HsState::ESTABLISHED;
-        Serial.println("Handshake COMPLETE!");
+        //Serial.println("Handshake COMPLETE!");
       }
     }
     resetLine();
@@ -263,7 +263,7 @@ void service() {
           need = (uint16_t)hdr[1] | ((uint16_t)hdr[2] << 8);
           if (need > sizeof(buf)) { rxState = RxState::Find; break; }
           rxState = (need == 0) ? RxState::CrcCheck : RxState::Pay;
-          Serial.print("hdr");
+          //Serial.print("hdr");
         }
         break;
 

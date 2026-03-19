@@ -110,7 +110,7 @@ void startup(){
 
   //Serial Comms
   //================================================================================
-  Serial.begin(9600); //initialize serial 9600 communication
+  Serial.begin(1000000); //initialize serial 9600 communication
   Serial2.begin(115200); // Initialize serial 250000 communication
   Serial.println("Serial Communication Transmitting!"); //Confirmation message
 

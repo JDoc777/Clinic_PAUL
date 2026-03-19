@@ -1,3 +1,4 @@
+/*
 #include <Arduino.h>
 #include "Encoders.h"
 #include "PinDefinitions.h"
@@ -116,3 +117,73 @@ void readEncoder4() {
     rotations4--;
   }
 }
+
+*/
+
+#include <Arduino.h>
+#include "Encoders.h"
+#include "PinDefinitions.h"
+
+// Continuous encoder counts
+extern volatile long posi1, posi2, posi3, posi4;
+
+// Optional: keep these only if you still want revolution tracking
+extern volatile long rotations1, rotations2, rotations3, rotations4;
+
+// Use an integer if your encoder really has 223 counts per rev.
+// If it is truly 222.5 from some derived scaling, do NOT use it for raw tick wrap logic.
+inline constexpr long COUNTS_PER_REV = 223;
+
+// FRONT RIGHT
+void readEncoder1() {
+  int b = digitalRead(ENCB_FR);
+
+  if (b > 0) {
+    posi1++;
+  } else {
+    posi1--;
+  }
+
+  // Optional revolution count from continuous position
+  rotations1 = posi1 / COUNTS_PER_REV;
+}
+
+// FRONT LEFT
+void readEncoder2() {
+  int b = digitalRead(ENCB_FL);
+
+  if (b > 0) {
+    posi2++;
+  } else {
+    posi2--;
+  }
+
+  rotations2 = posi2 / COUNTS_PER_REV;
+}
+
+// BACK LEFT
+void readEncoder3() {
+  int b = digitalRead(ENCB_BL);
+
+  if (b > 0) {
+    posi3++;
+  } else {
+    posi3--;
+  }
+
+  rotations3 = posi3 / COUNTS_PER_REV;
+}
+
+// BACK RIGHT
+void readEncoder4() {
+  int b = digitalRead(ENCB_BR);
+
+  if (b > 0) {
+    posi4++;
+  } else {
+    posi4--;
+  }
+
+  rotations4 = posi4 / COUNTS_PER_REV;
+}
+

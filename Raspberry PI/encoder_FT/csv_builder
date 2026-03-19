@@ -1,0 +1,88 @@
+import serial
+import csv
+import time
+import os
+
+# =========================
+# CONFIG
+# =========================
+PORT = 'COM4'
+BAUD = 1000000
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_FILE = os.path.join(SCRIPT_DIR, 'wheel_omega_log.csv')
+
+# =========================
+# SERIAL SETUP
+# =========================
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
+
+print(f"Connected to {PORT} @ {BAUD}")
+print(f"Saving to {OUTPUT_FILE}")
+print(f"Current working dir: {os.getcwd()}")
+
+# =========================
+# CSV SETUP
+# =========================
+row_count = 0
+
+with open(OUTPUT_FILE, mode='w', newline='') as file:
+    writer = csv.writer(file)
+
+    writer.writerow([
+        "arduino_time",
+        "omega1", "omega2", "omega3", "omega4",
+        "omega1_f", "omega2_f", "omega3_f", "omega4_f"
+    ])
+    file.flush()
+
+    try:
+        while True:
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
+
+            if not line:
+                continue
+
+            parts = line.split(',')
+
+            if len(parts) != 9:
+                print("Malformed:", line)
+                continue
+
+            try:
+                now = float(parts[0])
+                omega1 = float(parts[1])
+                omega2 = float(parts[2])
+                omega3 = float(parts[3])
+                omega4 = float(parts[4])
+                omega1_f = float(parts[5])
+                omega2_f = float(parts[6])
+                omega3_f = float(parts[7])
+                omega4_f = float(parts[8])
+
+                row = [
+                    now,
+                    omega1, omega2, omega3, omega4,
+                    omega1_f, omega2_f, omega3_f, omega4_f
+                ]
+
+                writer.writerow(row)
+                file.flush()
+                os.fsync(file.fileno())   # forces write to disk
+
+                row_count += 1
+
+                print(
+                    f"row {row_count} | {now:.0f} | "
+                    f"RAW: [{omega1:.2f}, {omega2:.2f}, {omega3:.2f}, {omega4:.2f}] | "
+                    f"FILT: [{omega1_f:.2f}, {omega2_f:.2f}, {omega3_f:.2f}, {omega4_f:.2f}]"
+                )
+
+            except ValueError:
+                print("Parse error:", line)
+
+    except KeyboardInterrupt:
+        print(f"\nStopped logging. Rows written: {row_count}")
+
+ser.close()

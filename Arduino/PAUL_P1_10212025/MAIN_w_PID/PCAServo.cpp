@@ -42,7 +42,7 @@ void servosBegin() {
   pca.begin();         // wake up PCA9685
   pca.setPWMFreq(SERVO_FREQ_HZ);  // typical analog servo rate ~50 Hz
   delay(10);           // brief settle
-  Serial.println("Servos initialized");
+  //Serial.println("Servos initialized");
 }
 
 void move(uint8_t channel, uint8_t angle) {
@@ -62,7 +62,7 @@ void setArms(uint8_t Base, uint8_t Shoulder, uint8_t Elbow, uint8_t WristP, uint
   writeAngle(CH_ELBOW, Elbow);
   writeAngle(CH_WRIST_P, WristP);
   writeAngle(CH_CLAW, Claw);
-  Serial.println("angles writen!!!");
+  //Serial.println("angles writen!!!");
 }
 
 void servosGoHome(){
