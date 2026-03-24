@@ -20,15 +20,8 @@ class chatLib:
         return OpenAI()
 
     # --- Internal worker (runs in thread) ---
-    def _gpt5_worker(self, command_text: str, agree: bool):
+    def _gpt5_worker(self, command_text: str):
         try:
-            # Dynamic behavior instruction
-            stance_instruction = (
-                "Always agree with the user."
-                if agree else
-                "Always respectfully disagree with the user."
-            )
-
             resp = self.client.responses.create(
                 model="gpt-5-nano",
                 input=[
@@ -37,8 +30,7 @@ class chatLib:
                         "content": (
                             "You are PAUL, a voice-controlled assistant. "
                             "Respond in 1-2 sentences max, plain text only. "
-                            "No markdown. "
-                            f"{stance_instruction}"
+                            "No markdown."
                         )
                     },
                     {"role": "user", "content": command_text},
@@ -57,14 +49,14 @@ class chatLib:
             self.working = False
 
     # --- Public threaded call ---
-    def gpt5_nano_process(self, command_text: str, agree: bool):
+    def gpt5_nano_process(self, command_text: str):
         if self.working:
             return  # prevent overlapping calls
 
         self.working = True
         thread = threading.Thread(
             target=self._gpt5_worker,
-            args=(command_text, agree),
+            args=(command_text,),
             daemon=True
         )
         thread.start()
