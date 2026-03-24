@@ -103,7 +103,7 @@ void setup() {
   Serial.begin(115200);
   settozero();
 
-  initMotorPID(1.0f, 0.0f, 0.0f);
+  initMotorPID(7.0f, 4.0f, 0.0f);
 }
 
 void loop() {
@@ -124,6 +124,9 @@ void loop() {
   UART::sendTelemetry(tx_payload);
 
   unsigned long now = micros();
+
+  //applyPWM(200, 1, 1, 1
+
 
   if (now - lastSample >= SAMPLE_PERIOD_US) {
     lastSample = now;

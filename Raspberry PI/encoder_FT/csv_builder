@@ -6,7 +6,7 @@ import os
 # =========================
 # CONFIG
 # =========================
-PORT = 'COM4'
+PORT = 'COM3'
 BAUD = 1000000
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

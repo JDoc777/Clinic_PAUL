@@ -11,10 +11,15 @@
 //Motors/Wheels
 //==========================================================================================
 //Wheels
-#define ENA_FL 5 //Front left wheel - pin 5
-#define ENB_FR 4 //Front right wheel - pin 4
-#define ENA_BR 3 //Back right wheel - pin 3
-#define ENB_BL 2 //Back left wheel - pin 2
+// #define ENA_FL 5 //Front left wheel - pin 5
+// #define ENB_FR 4 //Front right wheel - pin 4
+// #define ENA_BR 3 //Back right wheel - pin 3
+// #define ENB_BL 2 //Back left wheel - pin 2
+
+#define ENA_FL 3 //Front left wheel - pin 5
+#define ENB_FR 2 //Front right wheel - pin 4
+#define ENA_BR 5 //Back right wheel - pin 3
+#define ENB_BL 4 //Back left wheel - pin 2
 
 //Relay motor
 #define Relay_motors 28

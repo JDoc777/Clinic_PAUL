@@ -161,6 +161,7 @@ static void applyCommand(uint8_t flags,
   //Serial.print("  RL: "); Serial.print(rl);
   //Serial.print("  RR: "); Serial.println(rr);   // println ends the line
 
+// This used to be fl fr rl rr
   mecanumDrive(fl, fr, rl, rr);
 
   int Base = s[0];

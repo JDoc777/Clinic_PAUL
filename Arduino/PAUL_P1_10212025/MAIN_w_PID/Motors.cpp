@@ -27,11 +27,11 @@ static constexpr int DEADZONE_PWM = 0; // 175
 static constexpr int MAX_PWM = 255;
 
 // Feedforward gain
-float FL_GAIN = 1;
-float FR_GAIN = 1;
-float RL_GAIN = 1;
-float RR_GAIN = 1;
-static constexpr float FEEDFORWARD_GAIN = 8.23f; // 50
+float FL_GAIN = 10.7;
+float FR_GAIN = 10.7;
+float RL_GAIN = 11.33;
+float RR_GAIN = 10.7;
+static constexpr float FEEDFORWARD_GAIN = 1.00f; // 50
 
 // Last PWM values applied
 int currentSpeedFL = 0;
@@ -78,6 +78,8 @@ static constexpr float TWO_PI_F = 6.28318530718f;
 // Low-pass filter coefficients
 static constexpr float LPF_A = 0.8f;
 static constexpr float LPF_B = 0.2f;
+
+
 
 // Convert encoder delta → angular velocity (rad/s)
 static float countsToOmega(long dc, float dt) {
@@ -187,6 +189,7 @@ void stopMotors() {
 }
 
 // Pi sends linear speed (m/s × 100)
+// This used to be fl fr rl rr
 void mecanumDrive(int fl_cmd, int fr_cmd, int rl_cmd, int rr_cmd) {
     float fl_mps = fl_cmd / 100.0f;
     float fr_mps = fr_cmd / 100.0f;
@@ -276,7 +279,16 @@ void updateMotorPID(float dt) {
     currentSpeedRR = clamp(pwm_RR);
 
     applyPWM(currentSpeedFL, currentSpeedFR, currentSpeedRL, currentSpeedRR);
+    // Serial.print("FL PWM:");
+    // Serial.println(currentSpeedFL);
+    // Serial.print("FR PWM:");
     // Serial.println(currentSpeedFR);
+    // Serial.print("RL PWM:");
+    // Serial.println(currentSpeedRL);
+    // Serial.print("RR PWM:");
+    // Serial.println(currentSpeedRR);
+
+
 }
 
 void applyPWM(int fl_pwm, int fr_pwm, int rl_pwm, int rr_pwm) {
@@ -289,12 +301,14 @@ void applyPWM(int fl_pwm, int fr_pwm, int rl_pwm, int rr_pwm) {
         digitalWrite(IN2_FL, HIGH);
         fl_pwm = -fl_pwm;
     } else {
-        digitalWrite(IN1_FL, LOW);
-        digitalWrite(IN2_FL, LOW);
+        digitalWrite(IN1_FL, HIGH);
+        digitalWrite(IN2_FL, HIGH);
     }
     int pwm_FL = constrain(abs(fl_pwm), 0, MAX_PWM);
-    if (pwm_FL == 0) pwm_FL = MIN_ENABLE;     // keep board awake
+    //if (pwm_FL == 0) pwm_FL = MIN_ENABLE;     // keep board awake
     analogWrite(ENA_FL, pwm_FL);
+    
+    
 
     // FRONT RIGHT
     if (fr_pwm > 0) {
@@ -305,12 +319,13 @@ void applyPWM(int fl_pwm, int fr_pwm, int rl_pwm, int rr_pwm) {
         digitalWrite(IN3_FR, HIGH);
         fr_pwm = -fr_pwm;
     } else {
-        digitalWrite(IN4_FR, LOW);
-        digitalWrite(IN3_FR, LOW);
+        digitalWrite(IN4_FR, HIGH);
+        digitalWrite(IN3_FR, HIGH);
     }
     int pwm_FR = constrain(abs(fr_pwm), 0, MAX_PWM);
-    if (pwm_FR == 0) pwm_FR = MIN_ENABLE;
+    //if (pwm_FR == 0) pwm_FR = MIN_ENABLE;
     analogWrite(ENB_FR, pwm_FR);
+
 
     // REAR LEFT
     if (rl_pwm > 0) {
@@ -321,11 +336,11 @@ void applyPWM(int fl_pwm, int fr_pwm, int rl_pwm, int rr_pwm) {
         digitalWrite(IN8_BL, HIGH);
         rl_pwm = -rl_pwm;
     } else {
-        digitalWrite(IN7_BL, LOW);
-        digitalWrite(IN8_BL, LOW);
+        digitalWrite(IN7_BL, HIGH);
+        digitalWrite(IN8_BL, HIGH);
     }
     int pwm_RL = constrain(abs(rl_pwm), 0, MAX_PWM);
-    if (pwm_RL == 0) pwm_RL = MIN_ENABLE;
+    //if (pwm_RL == 0) pwm_RL = MIN_ENABLE;
     analogWrite(ENB_BL, pwm_RL);
 
     // REAR RIGHT
@@ -337,10 +352,10 @@ void applyPWM(int fl_pwm, int fr_pwm, int rl_pwm, int rr_pwm) {
         digitalWrite(IN6_BR, HIGH);
         rr_pwm = -rr_pwm;
     } else {
-        digitalWrite(IN5_BR, LOW);
-        digitalWrite(IN6_BR, LOW);
+        digitalWrite(IN5_BR, HIGH);
+        digitalWrite(IN6_BR, HIGH);
     }
     int pwm_RR = constrain(abs(rr_pwm), 0, MAX_PWM);
-    if (pwm_RR == 0) pwm_RR = MIN_ENABLE;
+    //if (pwm_RR == 0) pwm_RR = MIN_ENABLE;
     analogWrite(ENA_BR, pwm_RR);
 }
