@@ -1,67 +1,70 @@
 #include <Servo.h>
 #include "PotMonitor.h"
 
-PotMonitor pot(A1);
+PotMonitor pot(A1, 5, 400);
 Servo myServo;
 
 const int servoPin = 9;
+const int openAngle = 20;
+const int closeAngle = 160;
 
-// smoothing settings
-const int numSamples = 10;
-int samples[numSamples];
-int sampleIndex = 0;
-long sampleTotal = 0;
-int smoothedPotValue = 0;
+const int backoffDegrees = 20;   // 🔥 how far to back off
 
-int lastAngle = -1;
+bool closeCommandSent = false;
+bool movementStarted = false;
+bool resistanceFlag = false;
+bool finished = false;
 
-void runPotMonitor() {
-    pot.update();
-}
+int lastCommandedAngle = closeAngle;   // track last position
 
 void setup() {
-    Serial.begin(9600);
-    pot.begin();
+  Serial.begin(115200);
+  pot.begin();
 
-    myServo.attach(servoPin, 500, 2500);
-    myServo.write(90);
-    delay(1000);
+  myServo.attach(servoPin, 500, 2500);
 
-    int initialValue = pot.getPotValue();
-    for (int i = 0; i < numSamples; i++) {
-        samples[i] = initialValue;
-        sampleTotal += samples[i];
-    }
-    smoothedPotValue = initialValue;
+  myServo.write(openAngle);
+  delay(1500);
+
+  // send ONE close command
+  myServo.write(closeAngle);
+  lastCommandedAngle = closeAngle;
+  closeCommandSent = true;
 }
 
 void loop() {
-    runPotMonitor();
+  if (finished) return;
 
-    int rawPotValue = pot.getPotValue();
+  pot.update();
 
-    // moving average filter
-    sampleTotal -= samples[sampleIndex];
-    samples[sampleIndex] = rawPotValue;
-    sampleTotal += samples[sampleIndex];
-    sampleIndex = (sampleIndex + 1) % numSamples;
+  // detect real movement
+  if (closeCommandSent && !pot.isStable()) {
+    movementStarted = true;
+  }
 
-    smoothedPotValue = sampleTotal / numSamples;
+  // detect resistance
+  if (closeCommandSent && movementStarted && pot.isStable() && !resistanceFlag) {
+    resistanceFlag = true;
 
-    int angle = map(smoothedPotValue, 0, 1023, 0, 180);
+    // 🔥 BACK OFF A FEW DEGREES
+    int backoffAngle = lastCommandedAngle - backoffDegrees;
+    if (backoffAngle < openAngle) backoffAngle = openAngle;
 
-    // only update servo if angle changes enough
-    if (abs(angle - lastAngle) >= 2) {
-        myServo.write(angle);
-        lastAngle = angle;
-    }
+    myServo.write(backoffAngle);
 
-    Serial.print("\traw:");
-    Serial.print(rawPotValue);
-    Serial.print("\tsmoothed:");
-    Serial.print(smoothedPotValue);
-    Serial.print("\tangle:");
-    Serial.println(angle);
+    finished = true;
 
-    delay(20);
+    Serial.println("RESISTANCE -> BACKOFF");
+  }
+
+  Serial.print("pot:");
+  Serial.print(pot.getPotValue());
+  Serial.print("\tstable:");
+  Serial.print(pot.isStable() ? 1 : 0);
+  Serial.print("\tmoved:");
+  Serial.print(movementStarted ? 1 : 0);
+  Serial.print("\tflag:");
+  Serial.println(resistanceFlag ? 1 : 0);
+
+  delay(20);
 }
