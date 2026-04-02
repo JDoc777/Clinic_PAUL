@@ -389,7 +389,7 @@ def main():
         print("\n[Startup] Skipping Wheels (run_wheels is False at startup)")
 
     # Live pg_plot window
-    grid = obstacle_grid_processing.create_and_run(shared_data, poll=0.005)
+    grid = obstacle_grid_processing.create_and_run(shared_data, poll=0.02)
 
     lidar_proc = lidar_processing.LidarProcessor(shared_data, debug=True)
 

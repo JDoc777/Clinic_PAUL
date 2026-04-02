@@ -41,21 +41,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     win = pg.GraphicsLayoutWidget(show=True, title="Occupancy Grid, Log-Odds Grid, Fused Robot Position & Servo Angles")
     win.resize(1800, 800)
 
-    # Occupancy Grid Plot (top-left)
-    plot_grid = win.addPlot(title="Occupancy Grid")
-    plot_grid.setAspectLocked(True)
-    gridDiv = grid.grid.shape[0]
-    gridSize = gridDiv * grid.cell_size
-    plot_grid.setXRange(0, grid.grid.shape[1])
-    plot_grid.setYRange(0, grid.grid.shape[0])
-    plot_grid.showGrid(x=True, y=True, alpha=0.3)
-    img = pg.ImageItem()
-    plot_grid.addItem(img)
-    robot_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
-    plot_grid.addItem(robot_dot)
-    lut = np.zeros((256, 3), dtype=np.ubyte)
-    lut[:128] = [0, 255, 0]    # green for free
-    lut[128:] = [255, 0, 0]    # red for occupied
+
 
     # Log-Odds Grid Plot (top-right)
     plot_logodds = win.addPlot(title="Log-Odds Grid")
@@ -109,24 +95,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     plot_corrected.addItem(corrected_legend)
     corrected_legend.setPos(2.2, -0.5)  # Adjust position as needed
 
-    # Add a new plot for robot movement toward the goal (top-right)
-    plot_robot_to_goal = win.addPlot(title="Robot Movement to Goal")
-    plot_robot_to_goal.setAspectLocked(True)
-    plot_robot_to_goal.setXRange(0, grid.grid.shape[1])
-    plot_robot_to_goal.setYRange(0, grid.grid.shape[0])
-    plot_robot_to_goal.showGrid(x=True, y=True, alpha=0.3)
 
-    # Add the robot's position as a green dot
-    robot_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 255, 0, 200))  # Green dot
-    plot_robot_to_goal.addItem(robot_position_dot)
-
-    # Add the goal position as a red dot
-    goal_position_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(255, 0, 0, 200))  # Red dot
-    plot_robot_to_goal.addItem(goal_position_dot)
-
-    # Add a trajectory line to show the robot's gradual movement
-    robot_trajectory_line = pg.PlotDataItem(pen=pg.mkPen('g', width=2))  # Green line
-    plot_robot_to_goal.addItem(robot_trajectory_line)
 
     # Initialize trajectory data
     robot_trajectory_x = []
@@ -282,42 +251,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
     lidar_origin.setData([0.0], [0.0])
     plot_lidar.addItem(lidar_origin)'''
 
-        # --- LiDAR Local Map Plot ---
-    plot_lidar = win.addPlot(title="LiDAR Local Map")
-    plot_lidar.setAspectLocked(True)
-    plot_lidar.setXRange(-3, 3)
-    plot_lidar.setYRange(-3, 3)
-    plot_lidar.showGrid(x=True, y=True, alpha=0.3)
-        # --- Robot trajectory on LiDAR plot ---
-    lidar_traj_curve = plot_lidar.plot(pen=pg.mkPen('b', width=2))
-    lidar_traj_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(0, 0, 255, 200))
-    plot_lidar.addItem(lidar_traj_dot)
-
-    lidar_traj_x = []
-    lidar_traj_y = []
-
-    lidar_scatter = pg.ScatterPlotItem(
-        size=3,
-        brush=pg.mkBrush(255, 0, 255, 180)  # magenta
-    )
-    plot_lidar.addItem(lidar_scatter)
-
-        # Robot position dot (LiDAR plot)
-    lidar_robot_dot = pg.ScatterPlotItem(
-        size=12,
-        brush=pg.mkBrush(0, 0, 255, 200)  # blue
-    )
-    plot_lidar.addItem(lidar_robot_dot)
-
-        # --- LiDAR Occupancy Grid Plot ---
-    plot_lidar_grid = win.addPlot(title="LiDAR Occupancy Grid")
-    plot_lidar_grid.setAspectLocked(True)
-    plot_lidar_grid.setXRange(0, grid.grid.shape[1])
-    plot_lidar_grid.setYRange(0, grid.grid.shape[0])
-    plot_lidar_grid.showGrid(x=True, y=True, alpha=0.3)
-
-    lidar_grid_img = pg.ImageItem()
-    plot_lidar_grid.addItem(lidar_grid_img)
+  
 
 
 
@@ -328,9 +262,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         grid_disp = np.zeros_like(grid.grid, dtype=np.uint8)
         grid_disp[grid.grid <= 0] = 64   # green
         grid_disp[grid.grid > 0] = 192   # red
-        img.setImage(np.flipud(grid_disp.T), levels=(0, 255), lut=lut)
         QtCore.QCoreApplication.processEvents()
-        img.setRect(QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0]))
 
         # Log-odds grid visualization
         logodds_disp = np.clip(grid.grid, -10, 10)
@@ -356,7 +288,6 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         y_pos = fused_pose['y']
         robot_ix, robot_iy = world_to_grid_coords(grid, x_pos, y_pos)
 
-        robot_dot.setData([robot_ix], [robot_iy])
         robot_dot_logodds.setData([robot_ix], [robot_iy])
         robot_dot_corrected.setData([robot_ix], [robot_iy])
 
@@ -554,34 +485,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
             astar_raw_path.setData([], [])
             astar_smooth_path.setData([], [])
 
-        # Update the robot's position and goal on the new plot
-        try:
-            # Get the robot's current position
-            current_x = fused_pose['x']
-            current_y = fused_pose['y']
 
-            # Get the goal position
-            goal_x, goal_y = grid.goal_x, grid.goal_y
-
-            # Update the robot's position dot
-            robot_position_dot.setData([current_x], [current_y])
-
-            # Update the goal position dot
-            goal_position_dot.setData([goal_x], [goal_y])
-
-            # Append the robot's position to the trajectory if it has moved
-            if not robot_trajectory_x or (abs(current_x - robot_trajectory_x[-1]) > 1e-4 or abs(current_y - robot_trajectory_y[-1]) > 1e-4):
-                robot_trajectory_x.append(current_x)
-                robot_trajectory_y.append(current_y)
-
-            # Update the trajectory line
-            robot_trajectory_line.setData(robot_trajectory_x, robot_trajectory_y)
-        except AttributeError:
-            # If data is not available yet, clear the plot
-            robot_position_dot.setData([], [])
-            goal_position_dot.setData([], [])
-            robot_trajectory_line.setData([], [])
-        
             # ---------------- LiDAR Scan (Robot Frame) ----------------
         '''try:
             scan = None
@@ -608,49 +512,7 @@ def pg_live_plot_loop(grid, update_interval=10, servo_controller=None):
         except Exception:
             lidar_scatter.setData([])
         '''
-        # --- LiDAR local map points ---
-        try:
-            lidar_map = grid.lidar_map
-            pts = lidar_map.points_world
 
-            if pts:
-                xs, ys = zip(*pts)
-                lidar_scatter.setData(xs, ys)
-            else:
-                lidar_scatter.setData([], [])
-
-        except Exception:
-            lidar_scatter.setData([], [])
-
-        # --- Robot position on LiDAR plot ---
-        try:
-            x = fused_pose['x']
-            y = fused_pose['y']
-            lidar_robot_dot.setData([x], [y])
-            # Append trajectory if moved
-            if not lidar_traj_x or (abs(x - lidar_traj_x[-1]) > 1e-4 or abs(y - lidar_traj_y[-1]) > 1e-4):
-                lidar_traj_x.append(x)
-                lidar_traj_y.append(y)
-
-            lidar_traj_curve.setData(lidar_traj_x, lidar_traj_y)
-            lidar_traj_dot.setData([x], [y])
-        except Exception:
-            lidar_robot_dot.setData([], [])
-
-        try:
-            lidar_grid = grid.grid   # same grid for now
-
-            # Normalize log-odds to grayscale
-            disp = np.clip(lidar_grid, -5, 5)
-            lidar_img = ((disp + 5) * (255.0 / 10)).astype(np.uint8)
-
-            lidar_grid_img.setImage(np.flipud(lidar_img.T), levels=(0, 255))
-            lidar_grid_img.setRect(
-                QtCore.QRectF(0, 0, grid.grid.shape[1], grid.grid.shape[0])
-            )
-
-        except Exception:
-            pass
 
         # ---- draw semantic objects ----
         try:

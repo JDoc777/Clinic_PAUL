@@ -79,7 +79,7 @@ class ObstacleGrid:
     def loop(self):
         
 
-        target_dt = 0.005  # 10 Hz
+        target_dt = 0.05  # 10 Hz
 
 
         self._last_time = time.time()
