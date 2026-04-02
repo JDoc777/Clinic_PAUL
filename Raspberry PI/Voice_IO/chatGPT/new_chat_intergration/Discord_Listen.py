@@ -8,8 +8,8 @@ import os
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_BOT_KEY")
-#client = discord.Client()
-#client.run(TOKEN)
+client = discord.Client()
+client.run(TOKEN)
 
 print("DISCORD_BOT_KEY:", bool(os.getenv("DISCORD_BOT_KEY")))
 

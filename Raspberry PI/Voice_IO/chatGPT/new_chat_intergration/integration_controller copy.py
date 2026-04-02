@@ -13,9 +13,8 @@ WAKE_WORD2 = "play"
 
 
 class stringController():
-    def __init__(self, poll):
+    def __init__(self):
         self.inStr = ""
-        self.poll = poll
 
     def location(self, inStr):
         self.inStr = inStr
@@ -56,7 +55,7 @@ class stringController():
             chat.gpt5_nano_process(cmd, valid)
 
             while chat.working:
-                time.sleep(self.poll) # this line might cause issues
+                time.sleep(0.05) # this line might cause issues
 
             threading.Thread(
                 target=engine.speak,
@@ -97,48 +96,47 @@ class stringController():
         return None, None
 
 
-def discord_loop(shared_state, stringCtrl, poll):
-    while True:
-        with shared_state["lock"]:
-            if shared_state["new_flag"]:
-                msg = shared_state["latest_string"]
-                shared_state["new_flag"] = False
-                stringCtrl.location(msg)
-        time.sleep(poll)  # small sleep to avoid CPU spin
-
 # ---------------- MAIN ----------------
-def run(poll):
-    load_dotenv()
 
-    global chat, stringCtrl, engine
+load_dotenv()
 
-    chat = chat_worker.chatLib()
-    stringCtrl = stringController(poll)
-    engine = noQ.VoiceEngine(
-        "/home/shaboiken/Documents/GitHub/Clinic_PAUL/Raspberry PI/Voice_IO/en_GB-northern_english_male-medium.onnx",
-        poll
-    )
+chat = chat_worker.chatLib()
 
-    TOKEN = os.getenv("DISCORD_BOT_KEY")
-    print("DISCORD_BOT_KEY loaded:", bool(TOKEN))
+stringCtrl = stringController()
 
-    shared_state = {
-        "latest_string": "",
-        "new_flag": False,
-        "lock": threading.Lock()
-    }
+engine = noQ.VoiceEngine(
+    "/home/shaboiken/Documents/GitHub/Clinic_PAUL/Raspberry PI/Voice_IO/en_GB-northern_english_male-medium.onnx",
+    0.05
+)
 
-    listener = DiscordListener(
-        token=TOKEN,
-        channel_name="talk-to-paul",
-        shared_state=shared_state
-    )
-    listener.start()
+TOKEN = os.getenv("DISCORD_BOT_KEY")
 
-    # Start main loop in a separate thread
-    threading.Thread(
-        target=discord_loop,
-        args=(shared_state, stringCtrl, poll),
-        daemon=True
-    ).start()
+print("DISCORD_BOT_KEY loaded:", bool(TOKEN))
 
+shared_state = {
+    "latest_string": "",
+    "new_flag": False,
+    "lock": threading.Lock()
+}
+
+listener = DiscordListener(
+    token=TOKEN,
+    channel_name="talk-to-paul",
+    shared_state=shared_state
+)
+
+listener.start()
+
+while True:
+
+    with shared_state["lock"]:
+        if shared_state["new_flag"]:
+            msg = shared_state["latest_string"]
+            shared_state["new_flag"] = False
+
+            print("god help", msg)
+
+            # run message processing in thread
+            stringCtrl.location(msg)
+
+    time.sleep(0.05)

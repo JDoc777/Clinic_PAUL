@@ -442,7 +442,7 @@ def main():
 
 
     # ----- MAIN LIVE PLOT -----
-    pg_live_plot_loop(grid, servo_controller=controller)
+    #pg_live_plot_loop(grid, servo_controller=controller)
     # ------------------------------------------
 
     # ---------- MAIN GOON LOOP ----------
