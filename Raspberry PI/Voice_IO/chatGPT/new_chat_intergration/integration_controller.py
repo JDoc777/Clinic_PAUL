@@ -1,11 +1,11 @@
-import chat_worker
+from . import chat_worker
 import threading
 import time
-from Discord_Listen import DiscordListener
-import ttsNoQ_switch as noQ
+from . Discord_Listen import DiscordListener
+from . import ttsNoQ_switch as noQ
 from dotenv import load_dotenv
 import os
-from dumb_dict import data_dict
+from . dumb_dict import data_dict
 
 
 WAKE_WORD1 = "hey paul"
@@ -13,9 +13,10 @@ WAKE_WORD2 = "play"
 
 
 class stringController():
-    def __init__(self, poll):
+    def __init__(self, poll, grid):
         self.inStr = ""
         self.poll = poll
+        self.grid=grid
 
     def location(self, inStr):
         self.inStr = inStr
@@ -24,7 +25,7 @@ class stringController():
         threading.Thread(target=self.process_command, daemon=True).start()
     def process_command(self):
         w, cmd = self.extract_command(self.inStr)
-
+        start = time.perf_counter()
         if w == "hey paul":
             valid = False
             cmd_lower = cmd.lower()
@@ -36,12 +37,17 @@ class stringController():
                     first_match = key
                     break   # stop at FIRST hit
 
-            # Handle match (optional behavior)
             if first_match:
                 matchFound = True
                 print(f"Matched keyword: {first_match}")
-                #right here is where we would send 
-                #first_match into the navigation so they can look it up in the dictionary & know what to do
+
+                # 🔥 GET COORDS FROM DICTIONARY
+                goal_x, goal_y = data_dict[first_match]
+                print(f"Goal coords: ({goal_x}, {goal_y})")
+
+                # 🚀 SEND TO NAVIGATION
+                self.grid.set_goal(goal_x, goal_y)
+
             else:
                 matchFound = False
                 
@@ -63,7 +69,8 @@ class stringController():
                 args=(chat.last_response,),
                 daemon=True
             ).start()
-
+            end = time.perf_counter()
+            print(f"Elapsed: {end - start:.6f} seconds")
         elif w == "play":
             threading.Thread(
                 target=engine.speak,
@@ -107,13 +114,13 @@ def discord_loop(shared_state, stringCtrl, poll):
         time.sleep(poll)  # small sleep to avoid CPU spin
 
 # ---------------- MAIN ----------------
-def run(poll):
+def run(poll, grid):
     load_dotenv()
 
     global chat, stringCtrl, engine
 
     chat = chat_worker.chatLib()
-    stringCtrl = stringController(poll)
+    stringCtrl = stringController(poll, grid)
     engine = noQ.VoiceEngine(
         "/home/shaboiken/Documents/GitHub/Clinic_PAUL/Raspberry PI/Voice_IO/en_GB-northern_english_male-medium.onnx",
         poll
