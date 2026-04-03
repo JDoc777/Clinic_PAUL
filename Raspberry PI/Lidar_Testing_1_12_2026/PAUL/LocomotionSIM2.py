@@ -104,7 +104,7 @@ def densify_path(path, step=DENSIFY_STEP_M):
     return np.array(dense, dtype=float)
 
 
-def mecanum_ack(vx, omega, r=0.04, Lx=0.15, Ly=0.15):
+def mecanum_ack(vx, omega, r=0.52, Lx=0.15, Ly=0.15):
     k = Lx + Ly
 
     M = np.array([
@@ -122,7 +122,7 @@ def mecanum_ack(vx, omega, r=0.04, Lx=0.15, Ly=0.15):
     return wheels
 
 
-def mecanum_tip(omega, r=0.04, Lx=0.15, Ly=0.15):
+def mecanum_tip(omega, r=0.52, Lx=0.15, Ly=0.15):
     k = Lx + Ly
 
     M = np.array([

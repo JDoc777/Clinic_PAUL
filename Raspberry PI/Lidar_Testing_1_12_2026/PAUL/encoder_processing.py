@@ -4,7 +4,7 @@ import math
 
 # Constants
 PULSES_PER_REV = 222.5
-WHEEL_RADIUS = 0.04
+WHEEL_RADIUS = 0.52
 
 # Encoder state
 encoder_state = {
