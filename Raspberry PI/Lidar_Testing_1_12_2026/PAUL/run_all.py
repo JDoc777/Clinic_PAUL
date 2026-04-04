@@ -494,7 +494,7 @@ def main():
 
     #reverse_kinematics.create_and_run(shared_data, poll=0.02)
 
-    sec2_plot = sec2_plot_real.create_and_run(grid, poll=0.1)
+    sec2_plot = sec2_plot_real.create_and_run(grid, poll=0.02)
 
     sec3 = sec3_control_real.create_and_run(sec2_plot, poll=0.02)
 

@@ -4,7 +4,7 @@ import math
 
 # Constants
 PULSES_PER_REV = 222.5
-WHEEL_RADIUS = 0.52
+WHEEL_RADIUS = 0.052
 
 # Encoder state
 encoder_state = {
@@ -144,7 +144,7 @@ class EncoderProcessor:
         # ===== ADD TO HISTORY FIRST =====
         state['history'].append((current_time, current_encoder_pos))
 
-        WINDOW_SIZE = 30
+        WINDOW_SIZE = 5
 
         if len(state['history']) > WINDOW_SIZE:
             state['history'].pop(0)

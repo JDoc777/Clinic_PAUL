@@ -36,7 +36,7 @@ class ObstacleGrid:
         self.dx = 0.0
         self.dy = 0.0
         self.delta_s = 0.0
-        self.goal_x = 1.0
+        self.goal_x = -1.0
         self.goal_y = 0.0
         self.cell_size = 0.05  # meters
         self.raw_x = 0.0
@@ -454,7 +454,7 @@ class ObstacleGrid:
         # ---- 1. Build trinary map ----
         binary = (self.grid >= 1).astype(np.uint8)
 
-        robot_radius = 0.15  # meters
+        robot_radius = 0.06  # meters
         self.inflated_grid = inflate_obstacles(binary, robot_radius, self.cell_size)
         inflated = self.inflated_grid
 

@@ -30,7 +30,7 @@ BOT_ACCEL = 0.01
 BOT_DECEL = 0.04
 
 TIP_TURN_RATE = 0.06
-TIP_STOP_TOL = np.radians(1)
+TIP_STOP_TOL = np.radians(10)
 
 LOOKAHEAD_DISTANCE_M = 0.2
 TIP_SLOW_RADIUS_M = 0.40
@@ -47,7 +47,7 @@ DENSIFY_STEP_M = 0.02
 POINT_MATCH_TOL_M = 0.03
 
 # new robustness params
-HEADING_LOOKAHEAD_PTS = 5
+HEADING_LOOKAHEAD_PTS = 10
 MAX_HEADING_JUMP_RAD = np.radians(120)
 
 # =========================
@@ -104,7 +104,7 @@ def densify_path(path, step=DENSIFY_STEP_M):
     return np.array(dense, dtype=float)
 
 
-def mecanum_ack(vx, omega, r=0.52, Lx=0.15, Ly=0.15):
+def mecanum_ack(vx, omega, r=0.052, Lx=0.15, Ly=0.15):
     k = Lx + Ly
 
     M = np.array([
@@ -117,12 +117,12 @@ def mecanum_ack(vx, omega, r=0.52, Lx=0.15, Ly=0.15):
     V = np.array([vx, 0.0, omega], dtype=float)
     wheels = (1.0 / r) * (M @ V)
 
-    MAX_WHEEL_SPEED = 31.42
+    MAX_WHEEL_SPEED = 17.31
     wheels = np.clip(wheels, -MAX_WHEEL_SPEED, MAX_WHEEL_SPEED)
     return wheels
 
 
-def mecanum_tip(omega, r=0.52, Lx=0.15, Ly=0.15):
+def mecanum_tip(omega, r=0.052, Lx=0.15, Ly=0.15):
     k = Lx + Ly
 
     M = np.array([
