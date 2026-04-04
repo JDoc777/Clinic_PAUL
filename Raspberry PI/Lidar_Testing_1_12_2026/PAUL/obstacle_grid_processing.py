@@ -36,8 +36,8 @@ class ObstacleGrid:
         self.dx = 0.0
         self.dy = 0.0
         self.delta_s = 0.0
-        self.goal_x = -1.0
-        self.goal_y = 0.0
+        self.goal_x = 1.0
+        self.goal_y = 1.0
         self.cell_size = 0.05  # meters
         self.raw_x = 0.0
         self.raw_y = 0.0
@@ -235,7 +235,7 @@ class ObstacleGrid:
         #print(f"Grid shape: {self.grid.shape}")
 
     def world_to_grid(self, x_world, y_world):
-        ix = self.grid.shape[0] - 1 - int((x_world - self.x_origin) / self.cell_size)
+        ix = int((x_world - self.x_origin) / self.cell_size)
         iy = int((y_world - self.y_origin) / self.cell_size)
         return ix, iy
 
@@ -275,7 +275,7 @@ class ObstacleGrid:
         l_occ = +2.0   # log-odds increment for occupied
         l_free = -3.0  # log-odds increment for free
 
-        X_new = -fused_pose['x']
+        X_new = fused_pose['x']
         Y_new = fused_pose['y']
 
         start_ix, start_iy = self.world_to_grid(X_new, Y_new)
@@ -378,7 +378,7 @@ class ObstacleGrid:
             return True
 
         # start checking near where the robot currently is
-        xw = -fused_pose['x']
+        xw = fused_pose['x']
         yw = fused_pose['y']
         rx, ry = self.world_to_grid(xw, yw)
 
@@ -454,17 +454,17 @@ class ObstacleGrid:
         # ---- 1. Build trinary map ----
         binary = (self.grid >= 1).astype(np.uint8)
 
-        robot_radius = 0.06  # meters
+        robot_radius = 0.15  # meters
         self.inflated_grid = inflate_obstacles(binary, robot_radius, self.cell_size)
         inflated = self.inflated_grid
 
         # ---- 3. Convert robot pose to grid ----
-        xw = -fused_pose['x']
+        xw = fused_pose['x']
         yw = fused_pose['y']
         sx, sy = self.world_to_grid(xw, yw)
 
         # ---- 4. Convert goal to grid ----
-        gx, gy = self.world_to_grid(-goal_world[0], goal_world[1])
+        gx, gy = self.world_to_grid(goal_world[0], goal_world[1])
 
         # A* expects (x=col, y=row)
         start_A = (sx, sy)

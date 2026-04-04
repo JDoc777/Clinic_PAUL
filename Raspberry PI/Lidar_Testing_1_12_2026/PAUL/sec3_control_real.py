@@ -41,8 +41,8 @@ class RealSEC3:
         self.prev_desired_theta = 0.0
 
         self.vx_current = 0.0
-        self.SCALE = 0  # Scale factor for converting m/s to motor command units (this is a placeholder and should be tuned based on your robot's characteristics)
-        self.vx_target = BOT_SPEED_MPS * 0.3
+        self.SCALE = 70  # Scale factor for converting m/s to motor command units (this is a placeholder and should be tuned based on your robot's characteristics)
+        self.vx_target = BOT_SPEED_MPS * 0.2
         self.accel = BOT_ACCEL
         self.decel = BOT_DECEL
 
@@ -143,7 +143,10 @@ class RealSEC3:
         if len(modified_path) < 2:
             return
 
-        self.tip_set = set(tip_indices)
+        print(f"raw tip_indices = {tip_indices}", flush=True)  # ADD THIS
+
+        if tip_indices:  # only update if non-empty
+            self.tip_set = set(tip_indices)
 
         # REAL pose only. Do not simulate pose here.
         pos = np.array([fused_pose["x"], fused_pose["y"]], dtype=float)
@@ -151,7 +154,7 @@ class RealSEC3:
 
         self.theta_filtered = getattr(self, "theta_filtered", raw_theta)
 
-        alpha_theta = 0.9   # 0.85–0.95 range
+        alpha_theta = 0.6   # 0.85–0.95 range
         self.theta_filtered = alpha_theta * self.theta_filtered + (1 - alpha_theta) * raw_theta
 
         theta = self.theta_filtered
@@ -186,7 +189,11 @@ class RealSEC3:
 
         # now do path tracking
         closest_idx, proj_point, cte = self.find_projection_on_path(modified_path, pos)
-        self.path_index = closest_idx
+        self.path_index = max(self.path_index, closest_idx)
+
+        # ADD THIS:
+        print(f"pos={pos}, path_index={self.path_index}/{len(modified_path)}, tip_set={self.tip_set}, proj={proj_point}, cte={cte:.4f}", flush=True)
+
 
 
         # ===============================
@@ -200,9 +207,15 @@ class RealSEC3:
                 look_pts=HEADING_LOOKAHEAD_PTS
             )
 
-            jump = angle_wrap(desired_theta - self.prev_desired_theta)
-            if abs(jump) > MAX_HEADING_JUMP_RAD:
-                desired_theta = self.prev_desired_theta
+            if abs(angle_wrap(desired_theta - self.prev_desired_theta)) < np.radians(5):
+                # small change, trust it fully
+                pass
+            else:
+                # large change, only take 20% of it
+                desired_theta = angle_wrap(
+                    self.prev_desired_theta +
+                    0.2 * angle_wrap(desired_theta - self.prev_desired_theta)
+                )
 
             self.prev_desired_theta = float(desired_theta)
 
@@ -213,36 +226,17 @@ class RealSEC3:
             normal = np.array([-path_dir[1], path_dir[0]])
             cte_sign = np.sign(np.dot(normal, pos - proj_point))
 
+# TO THIS:
             # ===== FIXED OMEGA CONTROL =====
-            K_OMEGA = 0.15
+            K_OMEGA = 0.08
             K_CTE = 0.05
-
-            omega_cmd = K_OMEGA * error
-
-            # small bias to fight drift
             BIAS = 0.003
-            omega_cmd += BIAS * np.sign(error)
 
-            # --- SMOOTH OMEGA ---
-            alpha = 0.95
-
-            self.prev_omega = getattr(self, "prev_omega", 0.0)
-            omega_cmd = alpha * self.prev_omega + (1 - alpha) * omega_cmd
-            self.prev_omega = omega_cmd
-
-            # clamp BEFORE smoothing
-            omega_cmd = np.clip(omega_cmd, -0.2, 0.2)
-            # ==============================
-
-
-
-
-            #OMEGA CLAMP MAY CHANGE BECAUSE BOT SPEED CHANGED. TEST AND TUNE.
-
+            # Step 1: compute vx first so ratio clamp can use it
             remaining = self.get_remaining_to_next_tip_m(self.path_index)
 
             if remaining < TIP_STOP_RADIUS_M:
-                self.vx_target = BOT_SPEED_MPS * 0.2   # don’t fully stop
+                self.vx_target = BOT_SPEED_MPS * 0.2
                 accel_used = self.decel
             elif remaining < TIP_SLOW_RADIUS_M:
                 self.vx_target = BOT_SPEED_MPS * 0.5
@@ -254,9 +248,21 @@ class RealSEC3:
             self.vx_current += accel_used * (self.vx_target - self.vx_current)
             vx_cmd = self.vx_current
 
-            # NOW apply ratio limit
+            # Step 2: build raw omega from heading error + cross-track error
+            raw_omega = K_OMEGA * error + K_CTE * (cte * cte_sign) + BIAS * np.sign(error)
+
+            # Step 3: clamp raw omega first
+            raw_omega = np.clip(raw_omega, -0.2, 0.2)
+
+            # Step 4: ratio clamp on raw (before smoothing)
             if abs(vx_cmd) > 1e-4:
-                omega_cmd = np.clip(omega_cmd, -0.8 * vx_cmd, 0.8 * vx_cmd)
+                raw_omega = np.clip(raw_omega, -0.8 * vx_cmd, 0.8 * vx_cmd)
+
+            # Step 5: smooth last, store filtered value
+            self.prev_omega = getattr(self, "prev_omega", 0.0)
+            omega_cmd = 0.4 * self.prev_omega + 0.6 * raw_omega
+            self.prev_omega = omega_cmd
+            # ==============================
 
             
 
