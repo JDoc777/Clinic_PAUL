@@ -2,10 +2,10 @@ import discord
 import threading
 from datetime import datetime, timezone
 
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import os
 
-load_dotenv()
+#load_dotenv()
 
 TOKEN = os.getenv("DISCORD_BOT_KEY")
 

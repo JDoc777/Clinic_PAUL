@@ -3,10 +3,9 @@ import threading
 import time
 from . Discord_Listen import DiscordListener
 from . import ttsNoQ_switch as noQ
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import os
 from . dumb_dict import data_dict
-
 
 
 WAKE_WORD1 = "hey paul"
@@ -17,78 +16,78 @@ class stringController():
     def __init__(self, poll, grid):
         self.inStr = ""
         self.poll = poll
-        self.grid=grid
+        self.grid = grid
 
     def location(self, inStr):
         self.inStr = inStr
-
-        # run processing in a worker thread
         threading.Thread(target=self.process_command, daemon=True).start()
+
     def process_command(self):
         w, cmd = self.extract_command(self.inStr)
-
+        start = time.perf_counter()
         if w == "hey paul":
             valid = False
             cmd_lower = cmd.lower()
             first_match = None
 
-            # Find first keyword match
             for key in data_dict:
                 if key in cmd_lower:
                     first_match = key
-                    break   # stop at FIRST hit
+                    break
 
-            # Handle match (optional behavior)
+            matchFound = False
             if first_match:
                 matchFound = True
-                print(f"Matched keyword: {first_match}")
-
-                goal_x, goal_y = data_dict[first_match]
-                print(f"Goal coords: ({goal_x},{goal_y})")
-                self.grid.set_goal(goal_x, goal_y)
-                #right here is where we would send 
-                #first_match into the navigation so they can look it up in the dictionary & know what to do
-            else:
-                matchFound = False
-                
-            if (matchFound):
                 valid = True
-                #this will need to be threaded. cannot do until integration 
-                #wait for a response from external
+                goal_x, goal_y = data_dict[first_match]
 
-
-            # --- Original GPT processing ---
-            #need a wait until valid signal from 
             chat.gpt5_nano_process(cmd, valid)
 
             while chat.working:
-                time.sleep(self.poll) # this line might cause issues
+                time.sleep(self.poll)
+            end = time.perf_counter()
+            print(f"latency: {end - start:.6f} seconds")
+            def speak_then_act():
+                while engine.speaking.is_set():
+                    time.sleep(0.01)
 
-            threading.Thread(
-                target=engine.speak,
-                args=(chat.last_response,),
-                daemon=True
-            ).start()
+                engine.speak(chat.last_response)
+
+                start_time = time.time()
+                started = False
+
+                while time.time() - start_time < 1.0:
+                    if engine.speaking.is_set():
+                        started = True
+                        break
+                    time.sleep(0.01)
+
+                if started:
+                    while engine.speaking.is_set():
+                        time.sleep(0.01)
+
+                if matchFound:
+                    self.grid.set_goal(goal_x, goal_y)
+
+            threading.Thread(target=speak_then_act, daemon=True).start()
 
         elif w == "play":
-            threading.Thread(
-                target=engine.speak,
-                args=(cmd,),
-                daemon=True
-            ).start()
+            def safe_speak():
+                while engine.speaking.is_set():
+                    time.sleep(0.01)
+                engine.speak(cmd)
+
+            threading.Thread(target=safe_speak, daemon=True).start()
 
         else:
-            # no wake word detected
-            threading.Thread(
-                target=engine.speak,
-                #cmd = "womp",
-                args=("I dont understand",),
-                daemon=True
-            ).start()
-        
+            def safe_speak():
+                while engine.speaking.is_set():
+                    time.sleep(0.01)
+                engine.speak("I dont understand")
+
+            threading.Thread(target=safe_speak, daemon=True).start()
 
     def extract_command(self, text: str):
-
         if not text:
             return None, None
 
@@ -110,16 +109,17 @@ def discord_loop(shared_state, stringCtrl, poll):
                 msg = shared_state["latest_string"]
                 shared_state["new_flag"] = False
                 stringCtrl.location(msg)
-        time.sleep(poll)  # small sleep to avoid CPU spin
+        time.sleep(poll)
 
-# ---------------- MAIN ----------------
+
 def run(poll, grid):
-    load_dotenv()
+    #load_dotenv()
 
     global chat, stringCtrl, engine
 
     chat = chat_worker.chatLib()
     stringCtrl = stringController(poll, grid)
+
     engine = noQ.VoiceEngine(
         "/home/shaboiken/Documents/GitHub/Clinic_PAUL/Raspberry PI/API_integration/PAUL/en_GB-northern_english_male-medium.onnx",
         poll
@@ -141,10 +141,8 @@ def run(poll, grid):
     )
     listener.start()
 
-    # Start main loop in a separate thread
     threading.Thread(
         target=discord_loop,
         args=(shared_state, stringCtrl, poll),
         daemon=True
     ).start()
-

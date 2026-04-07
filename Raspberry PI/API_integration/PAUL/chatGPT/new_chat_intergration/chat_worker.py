@@ -1,9 +1,9 @@
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from openai import OpenAI
 import os
 import threading
 
-load_dotenv()
+#load_dotenv()
 
 print("OPENAI_API_KEY FOUND:", bool(os.getenv("OPENAI_API_KEY")))
 
