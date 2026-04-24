@@ -19,6 +19,7 @@ import lidar_processing
 import lidar_local_map
 import lidar_obstacle_map
 import robot_logger
+from claw_sim_window import ClawSimWindow
 
 from claw import start_claw_controller, start_claw_demo_thread
 from live_plots import pg_live_plot_loop, QApplication
@@ -43,6 +44,7 @@ run_wheels = False       # autonomous movement flag
 toggle_window = None     # control panel window
 claw_demo_thread = None  # handle to claw demo thread
 sec2_plot = None         # handle to Section 2 plot
+claw_sim_window = None
 
 import time
 import matplotlib.pyplot as plt
@@ -398,7 +400,7 @@ signal.signal(signal.SIGINT, handle_sigint)
 
 # =============== MAIN PROGRAM ===================
 def main():
-    global running_event, shared_data, toggle_window, controller, lcd_proc
+    global running_event, shared_data, toggle_window, controller, lcd_proc, claw_sim_window
 
     # ---------- STARTUP SEQUENCE ----------
     shared_data, running_event, ser = startup.startup()
@@ -524,6 +526,9 @@ def main():
 
     manual_pad = ManualControlPad()
     manual_pad.show()
+
+    claw_sim_window = ClawSimWindow(controller)
+    claw_sim_window.show()
 
 
     # ----- MAIN LIVE PLOT -----

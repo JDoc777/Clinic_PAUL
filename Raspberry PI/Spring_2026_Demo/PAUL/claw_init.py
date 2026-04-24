@@ -2,7 +2,6 @@ import sys
 import math
 import time
 import serial
-import csv
 import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
@@ -21,12 +20,6 @@ TURRET  = {"radius": 70.0, "height": 35.0}
 BASE_HEIGHT             = 76.0
 BASE_TO_SHOULDER_OFFSET = 0.0
 
-HOME_XYZ = np.array([
-    160,
-    0,
-    CHASSIS["Lz"] + 120
-], dtype=float)
-
 # Arm link lengths (mm)
 L1 = 203.0 #160
 L2 = 228.6
@@ -40,6 +33,12 @@ TIP_ARC_PTS        = 10
 PINCH_DISTANCE_MM  = 4.0
 GRIP_SMOOTH        = 0.12
 CLAW_CENTER_OFFSET = 11.0
+
+HOME_XYZ = np.array([
+    160,
+    0,
+    CHASSIS["Lz"] + 120
+], dtype=float)
 
 # Obstacle half-extents (mm)
 OBS_HALF = np.array([25.0, 25.0, 35.0], dtype=float)
@@ -152,7 +151,6 @@ SERVO_CAL = {
 # ============================================================
 SERIAL_PORT = "COM11"
 SERIAL_BAUD = 115200
-
 
 
 def clamp(v, lo, hi):
@@ -351,7 +349,7 @@ def seg_vs_box(p0, p1, bc, bs):
             ood = 1.0 / d[i]
             t1 = (mn[i] - p0[i]) * ood
             t2 = (mx[i] - p0[i]) * ood
-            if t1 > t2: 
+            if t1 > t2:
                 t1, t2 = t2, t1
             tmin = max(tmin, t1)
             tmax = min(tmax, t2)
@@ -465,15 +463,15 @@ class ServoController:
     def __init__(self, ser):
         self.ser = ser
 
-        self.current_positions = [90, 0, 180, 90, 0]
-        self.target_positions  = [90, 0, 180, 90, 0]
+        self.current_positions = [90, 0, 180, 90, 180]
+        self.target_positions  = [90, 0, 180, 90, 180]
 
         self.step_sizes = [
             1.0,   # base
             1.2,   # shoulder
             0.7,   # elbow
             1.5,   # wrist
-            1.0    # claw
+            2.0    # claw
         ]
 
         self.transition_delays = [
@@ -481,7 +479,7 @@ class ServoController:
             0.010,  # shoulder
             0.024,  # elbow
             0.010,  # wrist
-            0.010   # claw
+            0.012   # claw
         ]
 
         now = time.time()
@@ -501,7 +499,9 @@ class ServoController:
         self.ser.write(msg.encode("utf-8"))
         self.last_sent = msg
 
-       
+        reply = self.ser.readline().decode(errors="ignore").strip()
+        if reply:
+            print("Arduino:", reply)
 
     def set_positions_immediate(self, positions):
         if len(positions) != 5:
@@ -555,29 +555,17 @@ class IKWindow(QWidget):
         grid.scale(50, 50, 1)
         self.view.addItem(grid)
 
-        self.arm_total_scale = 2.0
-        self.grip_locked = False
-        self.locked_grip = None
-
-        self.delta_csv_path = "delta_log.csv"
-        self.start_time = time.time()
-
-
-        with open(self.delta_csv_path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["time_sec", "delta", "servo_angle", "pot_angle", "raw_value"])
-
         self.chassis_pos        = np.array([0., 0.], dtype=float)
         self.chassis_target_pos = np.array([0., 0.], dtype=float)
         self.chassis_speed      = 0.05
+
+        
 
         self.via_angles     = None
         self.target_xyz     = np.array([200., 0., CHASSIS["Lz"]+150.], dtype=float)
         self.grip = self.grip_target = 1.0
 
         self.arm_total_scale = 2.0
-        self.grip_locked = False
-        self.locked_grip = None
 
         self.sequence = [
             {"xyz": (200, 0, CHASSIS["Lz"] + 5),  "wait": 0.0, "speed": 1.0},
@@ -604,16 +592,10 @@ class IKWindow(QWidget):
         self.state = "IDLE"
         self.obstacles = []
 
-        # ===== solve IK for HOME_XYZ =====
         sol = self._best_ik(*HOME_XYZ, 0.0, True, self.chassis_pos)
-
         if sol:
-            self.current_angles = sol[:]
-            self.target_angles = sol[:]
-            self.target_xyz = HOME_XYZ.copy()
-        else:
-            print("HOME_XYZ IK failed")
-
+            self.current_angles = sol
+            self.target_angles = sol
 
         self.arm_plot    = gl.GLLinePlotItem(width=5, color=(0.2, 0.7, 1.0, 1.0))
         self.target_plot = gl.GLScatterPlotItem(size=14, color=(1.0, 0.25, 0.25, 1.0))
@@ -661,22 +643,12 @@ class IKWindow(QWidget):
         try:
             self.ser = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=0.01)
             time.sleep(2)
-            self.ser.reset_input_buffer()
 
             startup = self.ser.readline().decode(errors="ignore").strip()
             print("Arduino:", startup if startup else "connected")
 
             self.servo_ctrl = ServoController(self.ser)
-
-            startup_servos = current_angles_to_servos(
-                self.current_angles,
-                grip_value= 1.0
-            )
-
-            self.servo_ctrl.current_positions = list(startup_servos)
-            self.servo_ctrl.target_positions  = list(startup_servos)
-            self.servo_ctrl.last_sent = None
-            self.servo_ctrl.send_positions()
+            #self.servo_ctrl.send_positions()
 
             self._status("Arduino connected")
         except Exception as e:
@@ -848,110 +820,12 @@ class IKWindow(QWidget):
         r3.addStretch(1)
         root.addLayout(r3)
 
-        # 👇 ADD IT RIGHT HERE
-        # ============================================================
-        # MANUAL SERVO CONTROL GUI
-        # ============================================================
-        self.manual_mode = False
-
-        manual_frame = QFrame()
-        manual_frame.setStyleSheet("""
-            background-color: white;
-            border: 2px solid black;
-            border-radius: 6px;
-            padding: 6px;
-        """)
-        manual_layout = QHBoxLayout(manual_frame)
-
-        self.cb_manual = QCheckBox("Manual Servo Mode")
-        self.cb_manual.stateChanged.connect(
-            lambda: setattr(self, "manual_mode", self.cb_manual.isChecked())
-        )
-        manual_layout.addWidget(self.cb_manual)
-
-        self.manual_inputs = {}
-
-        for name, default in [
-            ("Yaw", 90),
-            ("Shoulder", 90),
-            ("Elbow", 90),
-            ("Wrist", 90),
-            ("Claw", 0),
-        ]:
-            manual_layout.addWidget(QLabel(name + ":"))
-            box = QLineEdit(str(default))
-            box.setMaximumWidth(45)
-            self.manual_inputs[name.lower()] = box
-            manual_layout.addWidget(box)
-
-        btn_manual_send = QPushButton("Send Angles")
-        btn_manual_send.clicked.connect(self.send_manual_servo_angles)
-        manual_layout.addWidget(btn_manual_send)
-
-        root.addWidget(manual_frame)
-
         self.timer = QTimer()
         self.timer.timeout.connect(self._tick)
         self.timer.start(20)
 
         self._sync_chassis()
         self._refresh_draw()
-
-    def set_servo_angles_direct(self, yaw=None, shoulder=None, elbow=None, wrist=None, claw=None):
-        self.manual_mode = True
-        self.cb_manual.setChecked(True)
-
-        current = [
-            90 if yaw is None else yaw,
-            90 if shoulder is None else shoulder,
-            90 if elbow is None else elbow,
-            90 if wrist is None else wrist,
-            0 if claw is None else claw,
-        ]
-
-        current = [clamp(v, 0, 180) for v in current]
-
-        if self.servo_ctrl is not None:
-            self.servo_ctrl.set_positions_immediate(current)
-
-        # Better reverse of your SERVO_CAL mapping
-        sim_angles = []
-        for joint, servo_deg in zip(["yaw", "shoulder", "elbow", "wrist"], current[:4]):
-            cfg = SERVO_CAL[joint]
-            sim_deg = (
-                servo_deg
-                - cfg["center_deg"]
-                - cfg.get("offset_deg", 0)
-            ) / (cfg["direction"] * cfg.get("scale", 1.0))
-
-            sim_angles.append(math.radians(sim_deg))
-
-        self.target_angles = sim_angles[:]
-        self.grip_target = 1.0 - (current[4] / 180.0)
-
-        self.state = "ARM_TO_TARGET"
-
-    def send_manual_servo_angles(self):
-        try:
-            yaw = float(self.manual_inputs["yaw"].text())
-            shoulder = float(self.manual_inputs["shoulder"].text())
-            elbow = float(self.manual_inputs["elbow"].text())
-            wrist = float(self.manual_inputs["wrist"].text())
-            claw = float(self.manual_inputs["claw"].text())
-        except Exception:
-            self._status("Invalid manual servo angle.")
-            return
-
-        self.set_servo_angles_direct(
-            yaw=yaw,
-            shoulder=shoulder,
-            elbow=elbow,
-            wrist=wrist,
-            claw=claw
-        )
-
-        self.cb_manual.setChecked(True)
-        self._status("Manual servos sent.")
 
     def get_sim_joint_speed(self, joint_name):
         return self.arm_total_scale * SIM_JOINT_SPEEDS[joint_name]
@@ -1079,10 +953,6 @@ class IKWindow(QWidget):
         self.sequence_enabled = False
 
     def move_to_xyz(self, x, y, z):
-        self.grip_locked = False
-        self.locked_grip = None
-        self.grip = 1.0
-        self.grip_target = 1.0
         self.target_xyz = np.array([x, y, z], dtype=float)
         self.target_plot.setData(pos=np.array([[x, y, z]]))
 
@@ -1152,22 +1022,14 @@ class IKWindow(QWidget):
             grip_value=self.grip
         )
 
-        self.servo_ctrl.set_targets(servos)
-        self.servo_ctrl.smooth_transition()
+        print(
+            "SIM(deg)=",
+            [round(math.degrees(a), 1) for a in self.current_angles],
+            " -> SERVO=",
+            servos
+        )
 
-    
-
-    def _log_delta_to_csv(self, delta_value, servo_angle, pot_angle, raw_value):
-        t = time.time() - self.start_time
-        with open(self.delta_csv_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                round(t, 4),
-                delta_value,
-                servo_angle,
-                round(pot_angle, 3),
-                raw_value
-            ])
+        self.servo_ctrl.set_positions_immediate(servos)
 
     def _tick(self):
         if self.state == "REPOSITIONING":
@@ -1216,65 +1078,7 @@ class IKWindow(QWidget):
                 self._status("Sequence complete.")
             
         self._refresh_draw()
-
-        servos = current_angles_to_servos(
-            self.current_angles,
-            grip_value=self.grip
-        )
-
-
-        if self.ser is not None:
-            line = self.ser.readline().decode(errors="ignore").strip()
-            if line:
-                print("Arduino:", line)
-
-                try:
-                    parts = [p.strip() for p in line.split("|")]
-                    delta_val = None
-                    flag_val = 0
-                    raw_value = None
-                    servo_angle_val = None
-                    pot_angle_val = None
-
-                    for part in parts:
-                        lower_part = part.lower()
-
-                        if lower_part.startswith("raw:"):
-                            raw_value = int(float(part.split(":")[1].strip()))
-                        elif lower_part.startswith("servoangle:"):
-                            servo_angle_val = float(part.split(":")[1].strip())
-                        elif lower_part.startswith("potangle:"):
-                            pot_angle_val = float(part.split(":")[1].strip())
-                        elif lower_part.startswith("delta:"):
-                            delta_val = float(part.split(":")[1].strip())
-                        elif lower_part.startswith("flag:"):
-                            flag_val = int(part.split(":")[1].strip())
-
-                    if (
-                        delta_val is not None and
-                        servo_angle_val is not None and
-                        pot_angle_val is not None and
-                        raw_value is not None
-                    ):
-                        self._log_delta_to_csv(
-                            delta_val,
-                            servo_angle_val,
-                            pot_angle_val,
-                            raw_value
-                        )
-
-                except Exception as e:
-                    print("Serial parse error:", e)
-                
-
-
-        # if claw is opening / open enough, clear Python lock
-        if servos[4] < 40:
-            self.grip_locked = False
-            self.locked_grip = None
-
-        if not self.grip_locked and not self.manual_mode:
-            self._send_sim_to_arm()
+        self._send_sim_to_arm()
 
     def _refresh_draw(self):
         yaw, sh, el, wr = self.current_angles
@@ -1295,15 +1099,12 @@ class IKWindow(QWidget):
         mount = pts[-1]
         cc = mount + CLAW_CENTER_OFFSET * tdir
 
-        if self.grip_locked and self.locked_grip is not None:
-            self.grip = self.locked_grip
+        if self.cb_auto_pinch.isChecked():
+            self.grip_target = 0.0 if np.linalg.norm(cc - self.target_xyz) <= PINCH_DISTANCE_MM else 1.0
         else:
-            if self.cb_auto_pinch.isChecked():
-                self.grip_target = 0.0 if np.linalg.norm(cc - self.target_xyz) <= PINCH_DISTANCE_MM else 1.0
-            else:
-                self.grip_target = 1.0
+            self.grip_target = 1.0
 
-            self.grip += (self.grip_target - self.grip) * GRIP_SMOOTH
+        self.grip += (self.grip_target - self.grip) * GRIP_SMOOTH
         sdir = unit(np.array([-math.sin(yaw), math.cos(yaw), 0.]))
         hs = 0.5 * CLAW_HINGE_SEP
         ha = mount + hs * sdir

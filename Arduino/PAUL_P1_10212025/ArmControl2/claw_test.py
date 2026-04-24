@@ -15,20 +15,14 @@ import pyqtgraph.opengl as gl
 # ============================================================
 # CHASSIS / TURRET
 # ============================================================
-CHASSIS = {"Lx": 356.0, "Ly": 356.0, "Lz": 203.0}
-TURRET  = {"radius": 70.0, "height": 35.0}
+CHASSIS = {"Lx": 304.8, "Ly": 245.0, "Lz": 120.0}
+TURRET  = {"radius": 45.0, "height": 18.0}
 
-BASE_HEIGHT             = 76.0
+BASE_HEIGHT             = 20.0
 BASE_TO_SHOULDER_OFFSET = 0.0
 
-HOME_XYZ = np.array([
-    160,
-    0,
-    CHASSIS["Lz"] + 120
-], dtype=float)
-
 # Arm link lengths (mm)
-L1 = 203.0 #160
+L1 = 160.0
 L2 = 228.6
 L3 = 120.0
 
@@ -107,7 +101,7 @@ MG996R_DEG_MAX  = 180.0
 # ============================================================
 SERVO_CAL = {
     "yaw": {
-        "center_deg": 120,
+        "center_deg": 90,
         "direction": 1,
         "scale": 1.0,
         "offset_deg": 0,
@@ -117,23 +111,23 @@ SERVO_CAL = {
     "shoulder": {
         "center_deg": 90,
         "direction": -1,
-        "scale": 0.9,
-        "offset_deg": 80,
+        "scale": 1.1,
+        "offset_deg": 90,
         "min_deg": 0,
         "max_deg": 180,
     },
     "elbow": {
         "center_deg": 90,
         "direction": -1,
-        "scale": 0.7,
-        "offset_deg": -55,
+        "scale": 1.1,
+        "offset_deg": -80,
         "min_deg": 0,
         "max_deg": 180,
     },
     "wrist": {
         "center_deg": 90,
         "direction": 1,
-        "scale": 0.75,
+        "scale": 1.7,
         "offset_deg": 0,
         "min_deg": 0,
         "max_deg": 180,
@@ -152,7 +146,6 @@ SERVO_CAL = {
 # ============================================================
 SERIAL_PORT = "COM11"
 SERIAL_BAUD = 115200
-
 
 
 def clamp(v, lo, hi):
@@ -571,6 +564,8 @@ class IKWindow(QWidget):
         self.chassis_target_pos = np.array([0., 0.], dtype=float)
         self.chassis_speed      = 0.05
 
+        self.current_angles = list(HOME_ANGLES)
+        self.target_angles  = list(HOME_ANGLES)
         self.via_angles     = None
         self.target_xyz     = np.array([200., 0., CHASSIS["Lz"]+150.], dtype=float)
         self.grip = self.grip_target = 1.0
@@ -603,17 +598,6 @@ class IKWindow(QWidget):
 
         self.state = "IDLE"
         self.obstacles = []
-
-        # ===== solve IK for HOME_XYZ =====
-        sol = self._best_ik(*HOME_XYZ, 0.0, True, self.chassis_pos)
-
-        if sol:
-            self.current_angles = sol[:]
-            self.target_angles = sol[:]
-            self.target_xyz = HOME_XYZ.copy()
-        else:
-            print("HOME_XYZ IK failed")
-
 
         self.arm_plot    = gl.GLLinePlotItem(width=5, color=(0.2, 0.7, 1.0, 1.0))
         self.target_plot = gl.GLScatterPlotItem(size=14, color=(1.0, 0.25, 0.25, 1.0))
@@ -667,15 +651,6 @@ class IKWindow(QWidget):
             print("Arduino:", startup if startup else "connected")
 
             self.servo_ctrl = ServoController(self.ser)
-
-            startup_servos = current_angles_to_servos(
-                self.current_angles,
-                grip_value= 1.0
-            )
-
-            self.servo_ctrl.current_positions = list(startup_servos)
-            self.servo_ctrl.target_positions  = list(startup_servos)
-            self.servo_ctrl.last_sent = None
             self.servo_ctrl.send_positions()
 
             self._status("Arduino connected")
@@ -848,48 +823,6 @@ class IKWindow(QWidget):
         r3.addStretch(1)
         root.addLayout(r3)
 
-        # 👇 ADD IT RIGHT HERE
-        # ============================================================
-        # MANUAL SERVO CONTROL GUI
-        # ============================================================
-        self.manual_mode = False
-
-        manual_frame = QFrame()
-        manual_frame.setStyleSheet("""
-            background-color: white;
-            border: 2px solid black;
-            border-radius: 6px;
-            padding: 6px;
-        """)
-        manual_layout = QHBoxLayout(manual_frame)
-
-        self.cb_manual = QCheckBox("Manual Servo Mode")
-        self.cb_manual.stateChanged.connect(
-            lambda: setattr(self, "manual_mode", self.cb_manual.isChecked())
-        )
-        manual_layout.addWidget(self.cb_manual)
-
-        self.manual_inputs = {}
-
-        for name, default in [
-            ("Yaw", 90),
-            ("Shoulder", 90),
-            ("Elbow", 90),
-            ("Wrist", 90),
-            ("Claw", 0),
-        ]:
-            manual_layout.addWidget(QLabel(name + ":"))
-            box = QLineEdit(str(default))
-            box.setMaximumWidth(45)
-            self.manual_inputs[name.lower()] = box
-            manual_layout.addWidget(box)
-
-        btn_manual_send = QPushButton("Send Angles")
-        btn_manual_send.clicked.connect(self.send_manual_servo_angles)
-        manual_layout.addWidget(btn_manual_send)
-
-        root.addWidget(manual_frame)
-
         self.timer = QTimer()
         self.timer.timeout.connect(self._tick)
         self.timer.start(20)
@@ -897,68 +830,18 @@ class IKWindow(QWidget):
         self._sync_chassis()
         self._refresh_draw()
 
-    def set_servo_angles_direct(self, yaw=None, shoulder=None, elbow=None, wrist=None, claw=None):
-        self.manual_mode = True
-        self.cb_manual.setChecked(True)
-
-        current = [
-            90 if yaw is None else yaw,
-            90 if shoulder is None else shoulder,
-            90 if elbow is None else elbow,
-            90 if wrist is None else wrist,
-            0 if claw is None else claw,
-        ]
-
-        current = [clamp(v, 0, 180) for v in current]
-
-        if self.servo_ctrl is not None:
-            self.servo_ctrl.set_positions_immediate(current)
-
-        # Better reverse of your SERVO_CAL mapping
-        sim_angles = []
-        for joint, servo_deg in zip(["yaw", "shoulder", "elbow", "wrist"], current[:4]):
-            cfg = SERVO_CAL[joint]
-            sim_deg = (
-                servo_deg
-                - cfg["center_deg"]
-                - cfg.get("offset_deg", 0)
-            ) / (cfg["direction"] * cfg.get("scale", 1.0))
-
-            sim_angles.append(math.radians(sim_deg))
-
-        self.target_angles = sim_angles[:]
-        self.grip_target = 1.0 - (current[4] / 180.0)
-
-        self.state = "ARM_TO_TARGET"
-
-    def send_manual_servo_angles(self):
-        try:
-            yaw = float(self.manual_inputs["yaw"].text())
-            shoulder = float(self.manual_inputs["shoulder"].text())
-            elbow = float(self.manual_inputs["elbow"].text())
-            wrist = float(self.manual_inputs["wrist"].text())
-            claw = float(self.manual_inputs["claw"].text())
-        except Exception:
-            self._status("Invalid manual servo angle.")
-            return
-
-        self.set_servo_angles_direct(
-            yaw=yaw,
-            shoulder=shoulder,
-            elbow=elbow,
-            wrist=wrist,
-            claw=claw
-        )
-
-        self.cb_manual.setChecked(True)
-        self._status("Manual servos sent.")
-
     def get_sim_joint_speed(self, joint_name):
         return self.arm_total_scale * SIM_JOINT_SPEEDS[joint_name]
 
     def _go_home(self):
-        self.move_to_xyz(*HOME_XYZ)
-        self._status("🏠 Moving to home XYZ position.")
+        self.target_angles = list(HOME_ANGLES)
+        self.via_angles = None
+        self.state = "ARM_TO_TARGET"
+        self.grip_locked = False
+        self.locked_grip = None
+        self.grip = 1.0
+        self.grip_target = 1.0
+        self._status("🏠 Returning to home position.")
 
     def _add_obstacle(self):
         try:
@@ -1273,7 +1156,7 @@ class IKWindow(QWidget):
             self.grip_locked = False
             self.locked_grip = None
 
-        if not self.grip_locked and not self.manual_mode:
+        if not self.grip_locked:
             self._send_sim_to_arm()
 
     def _refresh_draw(self):
