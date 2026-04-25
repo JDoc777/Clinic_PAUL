@@ -20,7 +20,7 @@ import lidar_local_map
 import lidar_obstacle_map
 import robot_logger
 
-from claw import start_claw_controller, start_claw_demo_thread
+#from claw import start_claw_controller, start_claw_demo_thread
 from live_plots import pg_live_plot_loop, QApplication
 from PyQt5.QtCore import QCoreApplication
 from PyQt5 import QtWidgets
@@ -277,12 +277,12 @@ class ToggleWindow(QtWidgets.QWidget):
             except Exception as e:
                 print("[Auto] Error stopping motors:", e)
 
-    def toggle_claw(self):
-        """
+    """def toggle_claw(self):
+        
         Toggle claw demo behavior.
         - When turning ON: start demo thread (if not already running)
         - When turning OFF: just print for now (stopping cleanly would require support in claw module)
-        """
+        
         global claw_demo_thread, running_event, controller
 
         self.claw_flag = not self.claw_flag
@@ -313,7 +313,7 @@ class ToggleWindow(QtWidgets.QWidget):
             # NOTE: We don't have a clean stop hook for the thread yet.
             # For now, just print. To actually stop, the claw thread code
             # should check a shared flag and exit its loop gracefully.
-            print("[Claw] Claw OFF requested (thread will continue until stop logic is added).")
+            print("[Claw] Claw OFF requested (thread will continue until stop logic is added).")"""
 
 
 # ---------- SIGINT HANDLER (CTRL-C) ----------
@@ -426,12 +426,12 @@ def main():
     lcd_proc = LCD_processing.create_and_run(shared_data, poll=0.9)
 
     # Claw controller
-    controller = start_claw_controller(
+    """controller = start_claw_controller(
         shared_data=shared_data,
         step_sizes=[2, 2, 3, 5, 5],
         transition_delay=0.02,
         servo_directions=[1, 1, 1, 1, 1]
-    )
+    )"""
 
     # NOTE: We no longer auto-start the claw demo thread here.
     # It will be controlled by the "Claw Arm" toggle button instead.
@@ -494,9 +494,9 @@ def main():
 
     #reverse_kinematics.create_and_run(shared_data, poll=0.02)
 
-    sec2_plot = sec2_plot_real.create_and_run(grid, poll=0.02)
+    #sec2_plot = sec2_plot_real.create_and_run(grid, poll=0.02)
 
-    sec3 = sec3_control_real.create_and_run(sec2_plot, poll=0.02)
+    #sec3 = sec3_control_real.create_and_run(sec2_plot, poll=0.02)
 
     #Payload.set_motors(shared_data, 1, 1, 1, 1)  # Ensure motors are stopped at startup
 
@@ -527,7 +527,7 @@ def main():
 
 
     # ----- MAIN LIVE PLOT -----
-    pg_live_plot_loop(grid, sec3=sec3, servo_controller=controller)
+    pg_live_plot_loop(grid, sec3=None, servo_controller=controller)
     # ------------------------------------------
 
     # ---------- MAIN LOOP ----------

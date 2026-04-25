@@ -19,9 +19,9 @@ import lidar_processing
 import lidar_local_map
 import lidar_obstacle_map
 import robot_logger
-from claw_sim_window import ClawSimWindow
+from claw_test import IKWindow
 
-from claw import start_claw_controller, start_claw_demo_thread
+
 from live_plots import pg_live_plot_loop, QApplication
 from PyQt5.QtCore import QCoreApplication
 from PyQt5 import QtWidgets
@@ -32,6 +32,8 @@ import Melodies
 import sec2_plot_real
 import sec3_control_real
 
+import BT_control
+import BT_state
 
 # ---------------- GLOBALS ----------------
 app = QApplication(sys.argv)
@@ -39,12 +41,11 @@ app = QApplication(sys.argv)
 shared_data = None       # <-- Added so SIGINT can see it
 running_event = None     # populated in main()
 lcd_proc = None
-controller = None        # claw controller (for demo thread)
 run_wheels = False       # autonomous movement flag
 toggle_window = None     # control panel window
-claw_demo_thread = None  # handle to claw demo thread
 sec2_plot = None         # handle to Section 2 plot
-claw_sim_window = None
+manual_pad = None
+claw_window = None
 
 import time
 import matplotlib.pyplot as plt
@@ -214,7 +215,6 @@ class ToggleWindow(QtWidgets.QWidget):
         # -------------------------------
         self.debug_flag = False
         self.auto_flag = False
-        self.claw_flag = False
 
         # -------------------------------
         # BUTTON 1 — DEBUG
@@ -232,13 +232,7 @@ class ToggleWindow(QtWidgets.QWidget):
         self.btn_auto.clicked.connect(self.toggle_auto)
         self.layout.addWidget(self.btn_auto)
 
-        # -------------------------------
-        # BUTTON 3 — CLAW ARM
-        # -------------------------------
-        self.btn_claw = QtWidgets.QPushButton("Claw Arm OFF")
-        self.btn_claw.setStyleSheet("font-size: 14px;")
-        self.btn_claw.clicked.connect(self.toggle_claw)
-        self.layout.addWidget(self.btn_claw)
+
 
     # ----------------------------------
     #  TOGGLE FUNCTIONS
@@ -279,43 +273,7 @@ class ToggleWindow(QtWidgets.QWidget):
             except Exception as e:
                 print("[Auto] Error stopping motors:", e)
 
-    def toggle_claw(self):
-        """
-        Toggle claw demo behavior.
-        - When turning ON: start demo thread (if not already running)
-        - When turning OFF: just print for now (stopping cleanly would require support in claw module)
-        """
-        global claw_demo_thread, running_event, controller
 
-        self.claw_flag = not self.claw_flag
-        print("Claw Arm =", self.claw_flag)
-
-        if self.claw_flag:
-            self.btn_claw.setText("Claw Arm ON")
-
-            if controller is None:
-                print("[Claw] WARNING: controller not initialized yet.")
-                return
-
-            if (claw_demo_thread is None) or (not claw_demo_thread.is_alive()):
-                try:
-                    print("[Claw] Starting claw demo thread...")
-                    claw_demo_thread = start_claw_demo_thread(
-                        running_event,
-                        controller,
-                        whenDetect=0.6
-                    )
-                    print("[Claw] Demo thread started.")
-                except Exception as e:
-                    print("[Claw] ERROR starting demo thread:", e)
-            else:
-                print("[Claw] Demo thread already running.")
-        else:
-            self.btn_claw.setText("Claw Arm OFF")
-            # NOTE: We don't have a clean stop hook for the thread yet.
-            # For now, just print. To actually stop, the claw thread code
-            # should check a shared flag and exit its loop gracefully.
-            print("[Claw] Claw OFF requested (thread will continue until stop logic is added).")
 
 
 # ---------- SIGINT HANDLER (CTRL-C) ----------
@@ -400,10 +358,12 @@ signal.signal(signal.SIGINT, handle_sigint)
 
 # =============== MAIN PROGRAM ===================
 def main():
-    global running_event, shared_data, toggle_window, controller, lcd_proc, claw_sim_window
+    global running_event, shared_data, toggle_window, lcd_proc, manual_pad, claw_window
 
     # ---------- STARTUP SEQUENCE ----------
     shared_data, running_event, ser = startup.startup()
+    BT_control.create_and_run(shared_data, running_event)
+    BT_state.create_and_run(shared_data, running_event)
     print("[Startup] PAUL startup complete.")
     # --------------------------------------
 
@@ -427,16 +387,7 @@ def main():
 
     lcd_proc = LCD_processing.create_and_run(shared_data, poll=0.9)
 
-    # Claw controller
-    controller = start_claw_controller(
-        shared_data=shared_data,
-        step_sizes=[2, 2, 3, 5, 5],
-        transition_delay=0.02,
-        servo_directions=[1, 1, 1, 1, 1]
-    )
 
-    # NOTE: We no longer auto-start the claw demo thread here.
-    # It will be controlled by the "Claw Arm" toggle button instead.
 
 
     # Wheels / autonomous subsystems at startup
@@ -449,7 +400,7 @@ def main():
         obstacle_grid_processing.create_and_run(shared_data)
 
         # Reverse kinematics node
-        local_motion_testing.create_and_run(shared_data)
+        #local_motion_testing.create_and_run(shared_data)
 
     else:
         print("\n[Startup] Skipping Wheels (run_wheels is False at startup)")
@@ -501,20 +452,8 @@ def main():
     #sec3 = sec3_control_real.create_and_run(sec2_plot, poll=0.02)
 
     #Payload.set_motors(shared_data, 1, 1, 1, 1)  # Ensure motors are stopped at startup
-
-
-
-
-
-
-
-
-
-
     
-
-
-
+    #Payload.set_servos(shared_data, 120, 0, 156, 73, 0)
 
 
 
@@ -527,12 +466,15 @@ def main():
     manual_pad = ManualControlPad()
     manual_pad.show()
 
-    claw_sim_window = ClawSimWindow(controller)
-    claw_sim_window.show()
+    claw_window = IKWindow(shared_data)
+    claw_window.resize(800, 600)
+    claw_window.show()
+
+
 
 
     # ----- MAIN LIVE PLOT -----
-    pg_live_plot_loop(grid, sec3=sec3, servo_controller=controller)
+    pg_live_plot_loop(grid, sec3=None)
     # ------------------------------------------
 
     # ---------- MAIN LOOP ----------

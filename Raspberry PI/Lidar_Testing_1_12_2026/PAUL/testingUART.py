@@ -121,19 +121,42 @@ def close_serial():
             pass
         ser = None
 
+
 def start_reader(start_writer=True, do_handshake=True):
     """
-    Open serial and start background read (and optional write) threads.
+    Open serial and start background read/write threads.
     Returns (shared_data, running_event, ser).
     """
-    s = open_serial()
+    s = open_serial(timeout=0.1)
+
     if do_handshake:
-        send_ascii_line("request")
-        time.sleep(0.5)
-        resp = recv_ascii_line(timeout=1.0)
-        if resp != "ack":
+        print("[UART] Waiting for Arduino handshake...")
+
+        s.reset_input_buffer()
+        s.reset_output_buffer()
+
+        deadline = time.time() + 15.0   # give Arduino time to finish boot
+
+        got_ack = False
+        while time.time() < deadline:
+            send_ascii_line("request")
+            resp = recv_ascii_line(timeout=0.5)
+
+            if resp:
+                print(f"[UART] Handshake response: {resp!r}")
+
+            if resp == "ack":
+                got_ack = True
+                break
+
+            time.sleep(0.25)
+
+        if not got_ack:
             raise RuntimeError("Handshake failed or no response")
-    s.reset_input_buffer()
+
+        print("[UART] Handshake successful!")
+        time.sleep(0.2)
+        s.reset_input_buffer()
 
     shared_data = UARTSharedData()
     running_event = threading.Event()
@@ -143,16 +166,14 @@ def start_reader(start_writer=True, do_handshake=True):
     read_thread.daemon = True
     read_thread.start()
 
-    write_thread = None
     if start_writer:
         write_thread = UARTWriteThread(s, shared_data, running_event)
         write_thread.daemon = True
         write_thread.start()
-        print("[UART] Writer thread started" if start_writer else "[UART] Writer thread disabled")
+        print("[UART] Writer thread started")
 
-
-    # Return handles so caller can stop/join if desired
     return shared_data, running_event, s
+
 
 def send_ascii_line(s: str):
     # ensure serial open

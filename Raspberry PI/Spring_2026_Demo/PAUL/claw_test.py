@@ -2,6 +2,7 @@ import sys
 import math
 import time
 import serial
+import Payload
 import csv
 import numpy as np
 from PyQt5.QtWidgets import (
@@ -109,7 +110,7 @@ SERVO_CAL = {
     "yaw": {
         "center_deg": 120,
         "direction": 1,
-        "scale": 1.0,
+        "scale": 1.5,
         "offset_deg": 0,
         "min_deg": 0,
         "max_deg": 180,
@@ -541,14 +542,64 @@ class ServoController:
 
 
 class IKWindow(QWidget):
-    def __init__(self):
+    def __init__(self, shared_data):
         super().__init__()
+        self.shared_data = shared_data
         self.setWindowTitle("PAUL Arm IK  —  Calibrated Servo Mapping  |  MG996R PWM")
+
+        self.resize(1050, 820)
+        self.setMinimumSize(1050, 820)
+
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #101018;
+                color: #dddddd;
+                font-size: 12px;
+            }
+
+            QLabel {
+                color: #dddddd;
+            }
+
+            QLineEdit {
+                background-color: #202030;
+                color: #ffffff;
+                border: 1px solid #555577;
+                border-radius: 4px;
+                padding: 3px;
+            }
+
+            QPushButton {
+                background-color: #25253a;
+                color: #ffffff;
+                border: 1px solid #666688;
+                border-radius: 5px;
+                padding: 5px 10px;
+                font-weight: bold;
+            }
+
+            QPushButton:hover {
+                background-color: #333355;
+            }
+
+            QPushButton:pressed {
+                background-color: #444477;
+            }
+
+            QCheckBox {
+                color: #dddddd;
+                spacing: 6px;
+            }
+        """)
 
         root = QVBoxLayout()
         self.setLayout(root)
 
         self.view = gl.GLViewWidget()
+        self.view = gl.GLViewWidget()
+
+# 🔥 THIS LINE FIXES YOUR WHITE BACKGROUND
+        self.view.setBackgroundColor('black')
         self.view.setCameraPosition(distance=800, elevation=18, azimuth=40)
         root.addWidget(self.view, stretch=1)
         grid = gl.GLGridItem()
@@ -658,32 +709,7 @@ class IKWindow(QWidget):
         self.ser = None
         self.servo_ctrl = None
 
-        try:
-            self.ser = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=0.01)
-            time.sleep(2)
-            self.ser.reset_input_buffer()
 
-            startup = self.ser.readline().decode(errors="ignore").strip()
-            print("Arduino:", startup if startup else "connected")
-
-            self.servo_ctrl = ServoController(self.ser)
-
-            startup_servos = current_angles_to_servos(
-                self.current_angles,
-                grip_value= 1.0
-            )
-
-            self.servo_ctrl.current_positions = list(startup_servos)
-            self.servo_ctrl.target_positions  = list(startup_servos)
-            self.servo_ctrl.last_sent = None
-            self.servo_ctrl.send_positions()
-
-            self._status("Arduino connected")
-        except Exception as e:
-            print(f"Serial connection failed: {e}")
-            self.ser = None
-            self.servo_ctrl = None
-            self._status("Arduino not connected")
 
         joint_frame = QFrame()
         joint_frame.setStyleSheet("background:#1a1a2e; border-radius:4px; padding:2px;")
@@ -856,8 +882,8 @@ class IKWindow(QWidget):
 
         manual_frame = QFrame()
         manual_frame.setStyleSheet("""
-            background-color: white;
-            border: 2px solid black;
+            background-color: #1a1a2e;
+            border: 1px solid #555577;
             border-radius: 6px;
             padding: 6px;
         """)
@@ -911,8 +937,15 @@ class IKWindow(QWidget):
 
         current = [clamp(v, 0, 180) for v in current]
 
-        if self.servo_ctrl is not None:
-            self.servo_ctrl.set_positions_immediate(current)
+        if self.shared_data is not None:
+            Payload.set_servos(
+                self.shared_data,
+                current[0],
+                current[1],
+                current[2],
+                current[3],
+                current[4]
+            )
 
         # Better reverse of your SERVO_CAL mapping
         sim_angles = []
@@ -1144,7 +1177,8 @@ class IKWindow(QWidget):
             self.state = "ARM_TO_VIA" if via_ang is not None else "ARM_TO_TARGET"
 
     def _send_sim_to_arm(self):
-        if self.servo_ctrl is None:
+        if self.shared_data is None:
+            print("[Claw] No shared_data, cannot send servos")
             return
 
         servos = current_angles_to_servos(
@@ -1152,8 +1186,14 @@ class IKWindow(QWidget):
             grip_value=self.grip
         )
 
-        self.servo_ctrl.set_targets(servos)
-        self.servo_ctrl.smooth_transition()
+        Payload.set_servos(
+            self.shared_data,
+            servos[0],
+            servos[1],
+            servos[2],
+            servos[3],
+            servos[4]
+        )
 
     
 
@@ -1228,43 +1268,6 @@ class IKWindow(QWidget):
             if line:
                 print("Arduino:", line)
 
-                try:
-                    parts = [p.strip() for p in line.split("|")]
-                    delta_val = None
-                    flag_val = 0
-                    raw_value = None
-                    servo_angle_val = None
-                    pot_angle_val = None
-
-                    for part in parts:
-                        lower_part = part.lower()
-
-                        if lower_part.startswith("raw:"):
-                            raw_value = int(float(part.split(":")[1].strip()))
-                        elif lower_part.startswith("servoangle:"):
-                            servo_angle_val = float(part.split(":")[1].strip())
-                        elif lower_part.startswith("potangle:"):
-                            pot_angle_val = float(part.split(":")[1].strip())
-                        elif lower_part.startswith("delta:"):
-                            delta_val = float(part.split(":")[1].strip())
-                        elif lower_part.startswith("flag:"):
-                            flag_val = int(part.split(":")[1].strip())
-
-                    if (
-                        delta_val is not None and
-                        servo_angle_val is not None and
-                        pot_angle_val is not None and
-                        raw_value is not None
-                    ):
-                        self._log_delta_to_csv(
-                            delta_val,
-                            servo_angle_val,
-                            pot_angle_val,
-                            raw_value
-                        )
-
-                except Exception as e:
-                    print("Serial parse error:", e)
                 
 
 
