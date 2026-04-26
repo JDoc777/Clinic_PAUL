@@ -296,66 +296,59 @@ void applyPWM(int fl_pwm, int fr_pwm, int rl_pwm, int rr_pwm) {
     if (fl_pwm > 0) {
         digitalWrite(IN1_FL, HIGH);
         digitalWrite(IN2_FL, LOW);
+        analogWrite(ENA_FL, constrain(fl_pwm, 0, MAX_PWM));
     } else if (fl_pwm < 0) {
         digitalWrite(IN1_FL, LOW);
         digitalWrite(IN2_FL, HIGH);
-        fl_pwm = -fl_pwm;
+        analogWrite(ENA_FL, constrain(-fl_pwm, 0, MAX_PWM));
     } else {
         digitalWrite(IN1_FL, HIGH);
         digitalWrite(IN2_FL, HIGH);
+        analogWrite(ENA_FL, MAX_PWM);   // brake
     }
-    int pwm_FL = constrain(abs(fl_pwm), 0, MAX_PWM);
-    //if (pwm_FL == 0) pwm_FL = MIN_ENABLE;     // keep board awake
-    analogWrite(ENA_FL, pwm_FL);
-    
-    
 
     // FRONT RIGHT
     if (fr_pwm > 0) {
         digitalWrite(IN4_FR, HIGH);
         digitalWrite(IN3_FR, LOW);
+        analogWrite(ENB_FR, constrain(fr_pwm, 0, MAX_PWM));
     } else if (fr_pwm < 0) {
         digitalWrite(IN4_FR, LOW);
         digitalWrite(IN3_FR, HIGH);
-        fr_pwm = -fr_pwm;
+        analogWrite(ENB_FR, constrain(-fr_pwm, 0, MAX_PWM));
     } else {
         digitalWrite(IN4_FR, HIGH);
         digitalWrite(IN3_FR, HIGH);
+        analogWrite(ENB_FR, MAX_PWM);   // brake
     }
-    int pwm_FR = constrain(abs(fr_pwm), 0, MAX_PWM);
-    //if (pwm_FR == 0) pwm_FR = MIN_ENABLE;
-    analogWrite(ENB_FR, pwm_FR);
-
 
     // REAR LEFT
     if (rl_pwm > 0) {
         digitalWrite(IN7_BL, HIGH);
         digitalWrite(IN8_BL, LOW);
+        analogWrite(ENB_BL, constrain(rl_pwm, 0, MAX_PWM));
     } else if (rl_pwm < 0) {
         digitalWrite(IN7_BL, LOW);
         digitalWrite(IN8_BL, HIGH);
-        rl_pwm = -rl_pwm;
+        analogWrite(ENB_BL, constrain(-rl_pwm, 0, MAX_PWM));
     } else {
         digitalWrite(IN7_BL, HIGH);
         digitalWrite(IN8_BL, HIGH);
+        analogWrite(ENB_BL, MAX_PWM);   // brake
     }
-    int pwm_RL = constrain(abs(rl_pwm), 0, MAX_PWM);
-    //if (pwm_RL == 0) pwm_RL = MIN_ENABLE;
-    analogWrite(ENB_BL, pwm_RL);
 
     // REAR RIGHT
     if (rr_pwm > 0) {
         digitalWrite(IN5_BR, HIGH);
         digitalWrite(IN6_BR, LOW);
+        analogWrite(ENA_BR, constrain(rr_pwm, 0, MAX_PWM));
     } else if (rr_pwm < 0) {
         digitalWrite(IN5_BR, LOW);
         digitalWrite(IN6_BR, HIGH);
-        rr_pwm = -rr_pwm;
+        analogWrite(ENA_BR, constrain(-rr_pwm, 0, MAX_PWM));
     } else {
         digitalWrite(IN5_BR, HIGH);
         digitalWrite(IN6_BR, HIGH);
+        analogWrite(ENA_BR, MAX_PWM);   // brake
     }
-    int pwm_RR = constrain(abs(rr_pwm), 0, MAX_PWM);
-    //if (pwm_RR == 0) pwm_RR = MIN_ENABLE;
-    analogWrite(ENA_BR, pwm_RR);
 }

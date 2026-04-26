@@ -50,22 +50,22 @@ const int echoPins[4] = {14, 41, 49, 35}; //Echo pins F, B, L, R
 //Front Right
 // #define ENCA_FR 22 
 // #define ENCB_FR 24
-#define ENCA_FR 23 
-#define ENCB_FR 25
+#define ENCA_FR 23 //was 23
+#define ENCB_FR 25 //was 25
 
 //Front Left
-#define ENCA_FL 30
-#define ENCB_FL 32
+#define ENCA_FL A1 //was 30
+#define ENCB_FL A2 //was 32
 
 //Back Left
-#define ENCA_BL 47
-#define ENCB_BL 53
+#define ENCA_BL 47 //was 47
+#define ENCB_BL 53 //was 53
 
 //Back Right
 // #define ENCA_BR 43
 // #define ENCB_BR 45
-#define ENCA_BR A1
-#define ENCB_BR A2
+#define ENCA_BR 43 //was A1
+#define ENCB_BR 45  //was A2
 
 //UART
 //========================================================================================

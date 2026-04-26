@@ -8,6 +8,9 @@
 #include "PCAServo.h"
 #include "MeasureCurrent.h"
 #include "Motors.h"
+#include "potentiometer.h"
+
+static int lastClawSent = 180;
 
 extern volatile long posi1, posi2, posi3, posi4;
 
@@ -97,16 +100,41 @@ static UART::Payload makePayload() {
 
   return p;
 }
+void safeSetArms(int base, int shoulder, int elbow, int wrist, int claw) {
+  base     = constrain(base, 0, 180);
+  shoulder = constrain(shoulder, 0, 180);
+  elbow    = constrain(elbow, 0, 180);
+  wrist    = constrain(wrist, 0, 180);
+  claw     = constrain(claw, 0, 180);
+
+  // if claw is opening, clear stall
+  if (claw < lastClawSent - 1) {
+    pot_reset_stall();
+  }
+
+  // if stalled, block more closing
+  if (pot_get_flag() == 1 && claw > lastClawSent) {
+    claw = lastClawSent;
+  }
+
+  pot_set_claw_cmd(claw);
+  setArms(base, shoulder, elbow, wrist, claw);
+
+  lastClawSent = claw;
+}
 
 void setup() {
   startup();
-  Serial.begin(115200);
-  settozero();
-
+  servosGoHome();
+  pot_init();
   initMotorPID(7.0f, 4.0f, 0.0f);
 }
 
 void loop() {
+
+  PotState s = pot_read();
+
+
   ampFlag();
 
   allDHT(2000);
@@ -118,9 +146,11 @@ void loop() {
   // Update wheel velocity estimates in Motors.cpp
   updateMotorVelocityEstimate();
 
+  UART::service();
+
   tx_payload = makePayload();
 
-  UART::service();
+
   UART::sendTelemetry(tx_payload);
 
   unsigned long now = micros();
@@ -131,16 +161,16 @@ void loop() {
   if (now - lastSample >= SAMPLE_PERIOD_US) {
     lastSample = now;
 
-    Serial.print(now);
-    Serial.print(",");
+    //Serial.print(now);
+    //Serial.print(",");
 
     // Keep same CSV order as before:
     // omega1, omega2, omega3, omega4, omega1_f, omega2_f, omega3_f, omega4_f
     // where 1=FR, 2=FL, 3=RL, 4=RR
-    Serial.print(omegaFR_raw); Serial.print(",");
+    /*Serial.print(omegaFR_raw); Serial.print(",");
     Serial.print(omegaFL_raw); Serial.print(",");
     Serial.print(omegaRL_raw); Serial.print(",");
-    Serial.print(omegaRR_raw); Serial.print(",");
+    Serial.print(omegaRR_raw); Serial.print(",");*/
 
     Serial.print(omegaFR_f); Serial.print(",");
     Serial.print(omegaFL_f); Serial.print(",");

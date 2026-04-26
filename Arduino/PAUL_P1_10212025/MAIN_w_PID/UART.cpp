@@ -1,4 +1,4 @@
-#define UART_LINK Serial2
+#define UART_LINK Serial3
 
 #include "UART.h"
 #include "PinDefinitions.h"
@@ -6,6 +6,9 @@
 #include "LCD.h"
 #include "PCAServo.h"
 #include "Buzzer.h"
+
+extern void safeSetArms(int base, int shoulder, int elbow, int wrist, int claw);
+
 
 namespace UART {
 
@@ -24,6 +27,7 @@ static uint8_t  crc_le_bytes[2];
 static char     lineBuf[32];
 static uint8_t  lineLen = 0;
 static void resetLine() { lineLen = 0; lineBuf[0] = '\0'; }
+
 
 // -------------------- CRC16-CCITT --------------------
 static uint16_t crc16_ccitt(const uint8_t* data, size_t len, uint16_t crc = 0xFFFF) {
@@ -151,10 +155,10 @@ static void applyCommand(uint8_t flags,
   // dt = 0.01 seconds for 10 ms
   updateMotorPID(0.01f);
 
-  int fl = m[0];
+  int fl = -m[0];
   int fr = m[1];
   int rl = m[2];
-  int rr = m[3];
+  int rr = -m[3];
 
   //Serial.print("FL: "); Serial.print(fl);
   //Serial.print("  FR: "); Serial.print(fr);
@@ -176,7 +180,7 @@ static void applyCommand(uint8_t flags,
   //Serial.println(WristP);
   //Serial.println(Claw);
 
-  setArms(Base, Shoulder, Elbow, WristP, Claw);
+  safeSetArms(Base, Shoulder, Elbow, WristP, Claw);
 
   lcd_show_text(text, text_len, false);
 }
@@ -208,9 +212,9 @@ static void applyCommand(uint8_t flags,
 static void handleHandshakeByte(uint8_t b) {
   if (b == '\n' || b == '\r') {
     lineBuf[lineLen] = '\0';
-    //Serial.print("Got handshake line: '");
-    //Serial.print(lineBuf);
-    //Serial.println("'");
+    Serial.print("Got handshake line: '");
+    Serial.print(lineBuf);
+    Serial.println("'");
     if (lineLen > 0) {
       for (uint8_t i = 0; i < lineLen; ++i) {
         if (lineBuf[i] >= 'A' && lineBuf[i] <= 'Z') lineBuf[i] = lineBuf[i] - 'A' + 'a';
@@ -219,7 +223,7 @@ static void handleHandshakeByte(uint8_t b) {
         UART_LINK.write((const uint8_t*)HS_ACK, strlen(HS_ACK));
         UART_LINK.write('\n');
         hs = HsState::ESTABLISHED;
-        //Serial.println("Handshake COMPLETE!");
+        Serial.println("Handshake COMPLETE!");
       }
     }
     resetLine();
@@ -244,8 +248,16 @@ void resetHandshake() {
 
 // RX-only service
 void service() {
+  //Serial.println("Before While");
   while (UART_LINK.available()) {
+    //Serial.println("Available");
     uint8_t b = (uint8_t)UART_LINK.read();
+
+    //Serial.print("RX BYTE: ");
+    //Serial.print((char)b);
+    //Serial.print("  HEX: 0x");
+    //Serial.println(b, HEX);
+
     if (!isEstablished()) {
       handleHandshakeByte(b);
       continue;
